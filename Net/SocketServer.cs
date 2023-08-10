@@ -7,14 +7,14 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-
+using LitJson;
 namespace Matory.Net
 {
     public class SocketServer
     {
 		private Dictionary<string, Session> SessionPool = new Dictionary<string, Session>();
 		private Dictionary<string, string> MsgPool = new Dictionary<string, string>();
-		public delegate void MyDelegate(string msg);
+		public delegate ResData MyDelegate(string msg);
 		public MyDelegate mydelegate;
 		private Thread thread;
 		#region 启动WebSocket服务
@@ -89,7 +89,7 @@ namespace Matory.Net
 				byte[] buffer = SessionPool[IP].buffer;
 				SockeClient.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback(Recieve), SockeClient);
 				string msg = Encoding.UTF8.GetString(buffer, 0, length);
-				string resultMsg = Encoding.UTF8.GetString(buffer, 0, length);
+				ResData result = null;
 				// websocket建立连接的时候，除了TCP连接的三次握手，websocket协议中客户端与服务器想建立连接需要一次额外的握手动作
 				if (msg.Contains("Sec-WebSocket-Key"))
 				{
@@ -104,16 +104,15 @@ namespace Matory.Net
 					{
 						thread = new Thread(() =>
 						{
-							mydelegate?.Invoke(msg);
+							result = (ResData)(mydelegate?.Invoke(msg));
 						});
 						thread.Start();
+						thread.Join();
 					}
-					if (!string.IsNullOrEmpty(msg))
-						resultMsg = "{Code:200,msg:true}";
 					else
-						resultMsg = "{Code:404,msg:false}";
+						result = new ResData(404, false,"");
 				}
-				byte[] msgBuffer = PackageServerData(resultMsg);
+				byte[] msgBuffer = PackageServerData(JsonMapper.ToJson(result));
 				foreach (Session se in SessionPool.Values)
 				{
 					se.SockeClient.Send(msgBuffer, msgBuffer.Length, SocketFlags.None);

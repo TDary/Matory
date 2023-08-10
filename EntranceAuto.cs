@@ -1,12 +1,9 @@
-﻿using Matory.Net;
-using System;
+﻿using LitJson;
+using Matory.Net;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Matory
@@ -14,53 +11,47 @@ namespace Matory
     public class Mato : MonoBehaviour
     {
         private SocketServer webs;
-        private string receiveMsg;
-        private bool msgBegin = false;
         private int port = 2666;
-        private Thread th;
+        private MsgProfiler m_Pro;
         private void Init()
         {
-            for(int i = 0; i < 5; i++)
+            DontDestroyOnLoad(this);
+            m_Pro = new MsgProfiler();
+            for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
                 if (thisport)
                 {
-                    Debug.Log($"This port {thisport} is in use");
+                    Debug.Log($"This port {thisport} is in used");
                     continue;
                 }
                 else
                 {
                     webs = new SocketServer();
                     webs.start(port + i);    //监听端口号
-                    webs.mydelegate = ParseProfiler;
+                    webs.mydelegate = ParseData;
                     Debug.Log($"Listen success for {thisport}");
                     break;
                 }
             }
+        }
 
-
-        }
-        private void Update()
+        public ResData ParseData(string msg)
         {
-            ProfilerData();
-        }
-        private void ParseProfiler(string msg)
-        {
-            receiveMsg = msg;
-            msgBegin = true;
-        }
-        private void ProfilerData()
-        {
-            if (msgBegin)
+            ResData res = null;
+            if (msg != null)
             {
-                //ParseDataFor receiveMsg
-                msgBegin = false;
+                var resData = JsonMapper.ToObject<TransData>(msg);
+                m_Pro.RunMethod(m_Pro.funMethods,resData);
+                res = new ResData(200, true, "");
             }
             else
             {
-                //waitMsg
+                res = null;
             }
+            return res;
         }
+
         /// <summary>
         /// IsPortInUse
         /// </summary>
@@ -97,5 +88,7 @@ namespace Matory
 
             return isPortInUse;
         }
+
+
     }
 }

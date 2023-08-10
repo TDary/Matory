@@ -120,7 +120,21 @@
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="DataAO\ResData.cs" />
+    <Compile Include="DataAO\TransData.cs" />
     <Compile Include="EntranceAuto.cs" />
+    <Compile Include="LitJson\IJsonWrapper.cs" />
+    <Compile Include="LitJson\JsonData.cs" />
+    <Compile Include="LitJson\JsonException.cs" />
+    <Compile Include="LitJson\JsonMapper.cs" />
+    <Compile Include="LitJson\JsonMockWrapper.cs" />
+    <Compile Include="LitJson\JsonReader.cs" />
+    <Compile Include="LitJson\JsonWriter.cs" />
+    <Compile Include="LitJson\Lexer.cs" />
+    <Compile Include="LitJson\Netstandard15Polyfill.cs" />
+    <Compile Include="LitJson\ParserToken.cs" />
+    <Compile Include="MatoryServer\MsgProfiler.cs" />
+    <Compile Include="MatoryServer\ParseServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DataAO\Session.cs" />
     <Compile Include="Net\SocketServer.cs" />
@@ -150,6 +164,14 @@
     <Reference Include="UnityEngine.UIModule">
       <HintPath>E:\Unity\2019.4.0f1\Editor\Data\Managed\UnityEngine\UnityEngine.UIModule.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <None Include="LitJson\AssemblyInfo.cs.in" />
+    <None Include="LitJson\LitJSON.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="LitJson\litjson.png" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
