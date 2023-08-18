@@ -8166,11 +8166,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "G:\\GameAuto\\Matory\\Matory.csproj",
+      "projectUniqueName": "G:\\Matory\\Matory.csproj",
       "projectName": "Matory",
-      "projectPath": "G:\\GameAuto\\Matory\\Matory.csproj",
+      "projectPath": "G:\\Matory\\Matory.csproj",
       "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-      "outputPath": "G:\\GameAuto\\Matory\\obj\\",
+      "outputPath": "G:\\Matory\\obj\\",
       "projectStyle": "PackageReference",
       "skipContentFileWrite": true,
       "fallbackFolders": [
