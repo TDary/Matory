@@ -10,10 +10,10 @@ public class MsgProfiler
         funMethods.Add(funName, method);
     }
 
-    public void RunMethod(Dictionary<string, FunMethod> allfun,TransData data)
+    public object RunMethod(Dictionary<string, FunMethod> allfun,TransData data)
     {
-        FunMethod currentFunc = null;
+        FunMethod currentFunc;
         allfun.TryGetValue(data.FuncName, out currentFunc);
-        currentFunc?.Invoke(data.FuncArgs);
+        return currentFunc?.Invoke(data.FuncArgs);
     }
 }
