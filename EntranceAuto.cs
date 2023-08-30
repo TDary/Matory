@@ -8,6 +8,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using LitJson;
 using System;
+using System.Collections;
+using UnityEngine.Profiling;
 
 namespace Matory
 {
@@ -15,12 +17,22 @@ namespace Matory
     {
         private SocketServer webs;
         private int port = 2666;
+        private bool startGatherMsg = false;
+        private bool isGathering = false;
         private MsgProfiler m_Pro;
+        private int frameNum = 0;
+        private int fileNum = 0;
+        private List<string> profilerDataNames;
+        private List<string> profilerDataPaths;
+        private string profilerDataName = "";
+        private string profilerDataPath = "";
         private void Init()
         {
             DontDestroyOnLoad(this);
             m_Pro = new MsgProfiler();
             m_Pro.funMethods.Add("Find_Text", FindText);
+            m_Pro.funMethods.Add("Gather_Profiler",GatherProfiler);
+            m_Pro.funMethods.Add("Check_Profiler",CheckProfilerData);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -99,9 +111,168 @@ namespace Matory
 
             return isPortInUse;
         }
+        #region 检查profilerdata逻辑
+        private string GetProfileData()
+        {
+            JsonWriter jw = new JsonWriter();
 
+            jw.WriteArrayStart();
+
+            for (int i = 0; i < profilerDataNames.Count; ++i)
+            {
+                jw.WriteObjectStart();
+
+                jw.WritePropertyName("path");//写入属性名称（'路径'）
+                jw.Write(profilerDataPaths[i]);
+
+                jw.WritePropertyName("name");
+                jw.Write(profilerDataNames[i]);
+
+                jw.WriteObjectEnd();
+            }
+
+            jw.WriteArrayEnd();
+
+            profilerDataNames.Clear();
+            profilerDataPaths.Clear();
+
+            return jw.ToString();
+        }
+        private object CheckProfilerData(string[] args)
+        {
+            try
+            {
+                return GetProfileData();
+            }
+            catch(Exception ex)
+            {
+                return ex.Message.ToString();
+            }
+        }
+        #endregion
+
+        #region 采集UnityProfilerData逻辑
+        private IEnumerator startGatherProfilerEnum = null;
+        private void InitProfiler()
+        {
+            frameNum = 0;
+            fileNum = 0;
+            isGathering = false;
+
+            profilerDataNames = new List<string>();
+            profilerDataPaths = new List<string>();
+        }
+        /// <summary>
+        /// 采集UnityProfiler数据
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object GatherProfiler(string[] args)
+        {
+            string res = "";
+            try
+            {
+                bool startArg = args.Length > 1 && (args[1] == "1");
+                res = "ok";
+
+                if (startArg)
+                {
+                    if (startGatherProfilerEnum == null)
+                    {
+                        startGatherMsg = true;
+                        startGatherProfilerEnum = StartGatherProfiler();
+                        StartCoroutine(startGatherProfilerEnum);
+
+                        res = "start gather profiler.";
+                    }
+                    else
+                    {
+                        res = "it's already started.";
+                    }
+                }
+                else
+                {
+                    if (startGatherProfilerEnum != null)
+                    {
+                        if (isGathering)
+                        {
+                            startGatherMsg = false;
+                            StopGather();
+                        }
+
+                        StopCoroutine(startGatherProfilerEnum);
+                        startGatherProfilerEnum = null;
+
+                        res = "stop gather profiler.";
+                    }
+                    else
+                        res = "it's has been stop.";
+                }
+            }
+            catch (Exception e)
+            {
+                res = e.Message.ToString();
+            }
+            return res;
+        }
+
+        IEnumerator StartGatherProfiler()
+        {
+            InitProfiler();
+            while (startGatherMsg)
+            {
+                if (isGathering)
+                {
+                    frameNum++;
+                    if (frameNum >= 300)
+                    {
+                        StopGather();
+                        fileNum++;
+                        frameNum = 0;
+                        isGathering = false;
+                    }
+                }
+                else
+                {
+                    BeginGather("AutoTest-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
+                    isGathering = true;
+                    frameNum++;
+                }
+            }
+            yield return null;
+        }
+
+        private void BeginGather(string fileName)
+        {
+            Profiler.SetAreaEnabled(ProfilerArea.CPU, true);
+            Profiler.SetAreaEnabled(ProfilerArea.Rendering, true);
+            Profiler.SetAreaEnabled(ProfilerArea.Memory, true);
+            Profiler.SetAreaEnabled(ProfilerArea.Physics, true);
+            Profiler.SetAreaEnabled(ProfilerArea.UI, true);
+            //标记data文件最大使用1GB储存空间
+            Profiler.maxUsedMemory = 1024 * 1024 * 1024;
+
+            Profiler.logFile = Application.persistentDataPath + "/" + fileName;
+            Profiler.enableBinaryLog = true;
+            Profiler.enabled = true;
+
+            profilerDataPath = Application.persistentDataPath;
+            profilerDataName = fileName;
+        }
+
+        private void StopGather()
+        {
+            Profiler.enabled = false;
+            Profiler.logFile = "";
+            Profiler.enableBinaryLog = false;
+
+            profilerDataNames.Add(profilerDataName);
+            profilerDataPaths.Add(profilerDataPath);
+        }
+        #endregion
+        #region 获取UI逻辑
         //获取UI上的文本对象
-        public object FindText(string[] args)
+        private object FindText(string[] args)
         {
             List<string> allres = new List<string>();
             Canvas[] allcanva = FindObjectsOfType<Canvas>();
@@ -130,7 +301,7 @@ namespace Matory
             }
         }
 
-        private Text GetChildText(Transform parent,string currentText)
+        private Text GetChildText(Transform parent, string currentText)
         {
             foreach (Transform child in parent)
             {
@@ -146,7 +317,7 @@ namespace Matory
             return null;
         }
 
-        private Button GetChildButton(Transform parent,string buttonName)
+        private Button GetChildButton(Transform parent, string buttonName)
         {
             foreach (Transform child in parent)
             {
@@ -161,5 +332,7 @@ namespace Matory
             }
             return null;
         }
+        #endregion
+
     }
 }

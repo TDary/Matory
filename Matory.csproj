@@ -169,6 +169,8 @@
   <ItemGroup>
     <None Include="LitJson\AssemblyInfo.cs.in" />
     <None Include="LitJson\LitJSON.csproj" />
+    <None Include="UAutoSDK_NGUI.unitypackage" />
+    <None Include="UAutoSDK_UGUI.unitypackage" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="LitJson\litjson.png" />
