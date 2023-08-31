@@ -37,11 +37,13 @@ namespace Matory
             m_Pro.funMethods.Add("GetUnityVersion", GetUnityVersion);
             m_Pro.funMethods.Add("StopConnection",StopConnection);
             m_Pro.funMethods.Add("Find_Text", FindText);
+            m_Pro.funMethods.Add("Find_AllButton", FindAllButton);
             m_Pro.funMethods.Add("Gather_Profiler",GatherProfiler);
             m_Pro.funMethods.Add("Check_Profiler",CheckProfilerData);
             m_Pro.funMethods.Add("Get_Hierarchy",GetHierarchy);
             m_Pro.funMethods.Add("Get_Inspector",GetInspector);
             m_Pro.funMethods.Add("ClickOne", ClickOneButton);
+            m_Pro.funMethods.Add("OpenScreenShot",StartScreenShot);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -591,6 +593,35 @@ namespace Matory
         #endregion
 
         #region 获取UI逻辑
+
+        /// <summary>
+        /// 获取当前界面所有UI按钮，返回路径以及Obj的Instacneid
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object FindAllButton(string[] args)
+        {
+            JsonWriter jw = new JsonWriter();
+            jw.WriteArrayStart();
+            Canvas[] allcanvas = FindObjectsOfType<Canvas>();
+            foreach(var can in allcanvas)
+            {
+                Button btn = GetChildButton(can.transform);
+                if(btn != null)
+                {
+                    jw.WriteObjectStart();
+                    jw.WritePropertyName("id");//写入属性名称（"id"）
+                    jw.Write(btn.gameObject.GetInstanceID());
+
+                    jw.WritePropertyName("path");
+                    jw.Write(GetHierarchyPath(btn.transform));
+                    jw.WriteObjectEnd();
+                }
+            }
+            jw.WriteArrayEnd();
+            return jw.ToString();
+        }
+
         //获取UI上的文本对象
         private object FindText(string[] args)
         {
@@ -628,19 +659,29 @@ namespace Matory
                 //寻找是否有Text组件
                 Text text = child.GetComponent<Text>();
                 if (text != null && text.text == currentText)
-                {
                     return text;
-                }
 
                 //寻找是否有InputField组件
                 InputField inputText = child.GetComponent<InputField>();
                 if (inputText != null && inputText.text == currentText)
-                {
                     return text;
-                }
                 
                 //递归遍历一下子对象
                 GetChildText(child, currentText);
+            }
+            return null;
+        }
+
+        private Button GetChildButton(Transform parent)
+        {
+            foreach (Transform child in parent)
+            {
+                //检查一些是否有Button组件
+                Button button = child.GetComponent<Button>();
+                if (button != null)
+                    return button;
+                //递归遍历一下子对象
+                GetChildButton(child);
             }
             return null;
         }
@@ -652,13 +693,36 @@ namespace Matory
                 //检查一些是否有Button组件
                 Button button = child.GetComponent<Button>();
                 if (button != null && button.name == buttonName)
-                {
                     return button;
-                }
                 //递归遍历一下子对象
                 GetChildButton(child, buttonName);
             }
             return null;
+        }
+        #endregion
+
+        #region 开启截图功能
+
+        private object StartScreenShot(string[] args)
+        {
+            try
+            {
+                StartCoroutine(ScreenShotCoroutine());
+                return "ok";
+            }
+            catch(Exception ex)
+            {
+                return ex.Message.ToString();
+            }
+        }
+
+        private IEnumerator ScreenShotCoroutine()
+        {
+            yield return new WaitForEndOfFrame();
+            Texture2D screenshot = UnityEngine.ScreenCapture.CaptureScreenshotAsTexture();
+            byte[] bytesPNG = UnityEngine.ImageConversion.EncodeToPNG(screenshot);
+            string pngAsString = Convert.ToBase64String(bytesPNG);
+            //server.Send(client.TcpClient, prot.pack(pngAsString));
         }
         #endregion
 
