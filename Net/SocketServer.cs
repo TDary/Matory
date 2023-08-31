@@ -17,18 +17,24 @@ namespace Matory.Net
 		public delegate ResData MyDelegate(string msg);
 		public MyDelegate mydelegate;
 		private Thread thread;
+		private Socket SockeServer;
 		#region 启动WebSocket服务
 		/// <summary>
 		/// 启动WebSocket服务
 		/// </summary>
 		public void start(int port)
 		{
-			Socket SockeServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+			SockeServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			SockeServer.Bind(new IPEndPoint(IPAddress.Any, port));
 			SockeServer.Listen(20);
 			SockeServer.BeginAccept(new AsyncCallback(Accept), SockeServer);
 		}
 		#endregion
+
+		public void stop()
+        {
+			SockeServer.Close();
+		}
 
 		#region 处理客户端连接请求
 		/// <summary>

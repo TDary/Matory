@@ -10,6 +10,7 @@ using LitJson;
 using System;
 using System.Collections;
 using UnityEngine.Profiling;
+using System.Reflection;
 
 namespace Matory
 {
@@ -30,9 +31,14 @@ namespace Matory
         {
             DontDestroyOnLoad(this);
             m_Pro = new MsgProfiler();
+            m_Pro.funMethods.Add("GetVersion",GetSdkVersion);
+            m_Pro.funMethods.Add("GetUnityVersion", GetUnityVersion);
+            m_Pro.funMethods.Add("StopConnection",StopConnection);
             m_Pro.funMethods.Add("Find_Text", FindText);
             m_Pro.funMethods.Add("Gather_Profiler",GatherProfiler);
             m_Pro.funMethods.Add("Check_Profiler",CheckProfilerData);
+            m_Pro.funMethods.Add("Get_Hierarchy",GetHierarchy);
+            m_Pro.funMethods.Add("Get_Inspector",GetInspector);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -111,6 +117,316 @@ namespace Matory
 
             return isPortInUse;
         }
+        /// <summary>
+        /// 关闭连接
+        /// </summary>
+        /// <returns></returns>
+        private object StopConnection(string[] args)
+        {
+            if (webs != null)
+            {
+                webs.stop();
+            }
+            return null;
+        }
+
+        #region 获取Unity面板数据
+        private bool ComponentContainProperty(Component component, string propertyName)
+        {
+            if (component != null && !string.IsNullOrEmpty(propertyName))
+            {
+                PropertyInfo _findedPropertyInfo = component.GetType().GetProperty(propertyName);
+                return (_findedPropertyInfo != null);
+            }
+            return false;
+        }
+        private T GetComponentValue<T>(Component component, string propertyName)
+        {
+            if (component != null && !string.IsNullOrEmpty(propertyName))
+            {
+                PropertyInfo propertyInfo = component.GetType().GetProperty(propertyName);
+                if (propertyInfo != null)
+                {
+                    MethodInfo mi = propertyInfo.GetGetMethod(true);
+                    if (mi != null)
+                    {
+                        return (T)mi.Invoke(component, null);
+                    }
+
+                    //return (T)propertyInfo.GetValue(component, null);
+                }
+            }
+            return default(T);
+        }
+        private void GetComponentPropertys(Component component, JsonWriter jw)
+        {
+            try
+            {
+                PropertyInfo[] propertyInfos = component.GetType().GetProperties(BindingFlags.Public |
+                                                                                BindingFlags.Instance |
+                                                                                BindingFlags.SetProperty |
+                                                                                BindingFlags.GetProperty);
+
+                FieldInfo[] fieldInfos = component.GetType().GetFields(BindingFlags.Public |
+                                                                    BindingFlags.Instance |
+                                                                    BindingFlags.SetField |
+                                                                    BindingFlags.GetField);
+
+                for (int i = 0; i < propertyInfos.Length; ++i)
+                {
+                    PropertyInfo pi = propertyInfos[i];
+
+                    //Debug.LogError("Property:" + pi.Name);
+
+                    if (pi.CanWrite && pi.CanRead)
+                    {
+                        // call getter with these Property name will create new object;
+                        if (pi.Name == "mesh" || pi.Name == "material" || pi.Name == "materials")
+                        {
+                            continue;
+                        }
+
+                        System.Object obj = pi.GetValue(component, null);
+                        if (obj is System.Collections.ICollection)
+                        {
+                            continue;
+                        }
+
+                        if (pi.GetValue(component) != null)
+                        {
+                            jw.WriteObjectStart();
+
+                            jw.WritePropertyName("name");
+                            jw.Write(pi.Name);
+
+                            jw.WritePropertyName("type");
+                            jw.Write(pi.GetValue(component).GetType().ToString());
+
+                            jw.WritePropertyName("value");
+                            jw.Write(pi.GetValue(component).ToString());
+
+                            jw.WriteObjectEnd();
+                        }
+                    }
+                    else
+                    {
+
+                    }
+                }
+
+                for (int i = 0; i < fieldInfos.Length; ++i)
+                {
+                    FieldInfo fi = fieldInfos[i];
+                    //Debug.LogError("Field:" + fi.Name);
+
+                    if (fi.GetValue(component) != null)
+                    {
+                        jw.WriteObjectStart();
+
+                        jw.WritePropertyName("name");
+                        jw.Write(fi.Name);
+
+                        jw.WritePropertyName("type");
+                        jw.Write(fi.GetValue(component).GetType().ToString());
+
+                        jw.WritePropertyName("value");
+                        jw.Write(fi.GetValue(component).ToString());
+
+                        jw.WriteObjectEnd();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.Log(ex);
+            }
+        }
+        void WriteJsonData(JsonWriter jw, Component component)
+        {
+            GameRunTimeDataSet.AddComponent(component);
+
+            jw.WriteObjectStart();
+
+            jw.WritePropertyName("id");
+            jw.Write(component.GetInstanceID());
+
+            jw.WritePropertyName("type");
+            jw.Write(component.GetType().ToString());
+
+            if (ComponentContainProperty(component, "enabled"))
+            {
+                jw.WritePropertyName("enabled");
+                jw.Write(GetComponentValue<bool>(component, "enabled"));
+            }
+
+            jw.WritePropertyName("properties");
+            jw.WriteArrayStart();
+
+            GetComponentPropertys(component, jw);
+
+            jw.WriteArrayEnd();
+
+            jw.WriteObjectEnd();
+        }
+        private object GetInspector(string[] args)
+        {
+            try
+            {
+                int objId = int.Parse(args[1]);
+
+                GameObject obj = null;
+
+                if (GameRunTimeDataSet.TryGetGameObject(objId, out obj))
+                {
+                    JsonWriter jw = new JsonWriter();
+
+                    jw.WriteObjectStart();
+
+                    jw.WritePropertyName("name");
+                    jw.Write(obj.name);
+
+                    jw.WritePropertyName("id");
+                    jw.Write(obj.GetInstanceID());
+
+                    jw.WritePropertyName("enabled");
+                    jw.Write(obj.activeInHierarchy);
+
+                    jw.WritePropertyName("tag");
+                    jw.Write(obj.tag);
+
+                    jw.WritePropertyName("layer");
+                    jw.Write(LayerMask.LayerToName(obj.layer));
+
+                    jw.WritePropertyName("components");
+
+                    jw.WriteArrayStart();
+
+                    Component[] components = obj.GetComponents<Component>();
+                    for (int j = 0; j < components.Length; ++j)
+                    {
+                        WriteJsonData(jw, components[j]);
+                    }
+
+                    jw.WriteArrayEnd();
+
+                    jw.WriteObjectEnd();
+
+                    return jw.ToString();
+                }
+                else
+                {
+                    throw new Exception(Error.NotFoundMessage);
+                }
+            }
+            catch (Exception e)
+            {
+                return e.ToString();
+            }
+        }
+        private void WriteJsonData(JsonWriter jw, GameObject go)
+        {
+            jw.WriteObjectStart();
+
+            jw.WritePropertyName("id");
+            jw.Write(go.GetInstanceID());
+
+            jw.WritePropertyName("name");
+            jw.Write(go.name);
+
+            GameRunTimeDataSet.AddGameObject(go);
+
+            if (go.transform.childCount > 0)
+            {
+                jw.WritePropertyName("children");
+                jw.WriteArrayStart();
+
+                for (int i = 0; i < go.transform.childCount; ++i)
+                {
+                    GameObject child = go.transform.GetChild(i).gameObject;
+                    WriteJsonData(jw, child);
+                }
+
+                jw.WriteArrayEnd();
+            }
+
+            jw.WriteObjectEnd();
+        }
+        private object GetHierarchy(string[] args)
+        {
+            try
+            {
+                GameRunTimeDataSet.InitDataSet();
+
+                JsonWriter jsonWriter = new JsonWriter();
+                jsonWriter.WriteObjectStart();
+                jsonWriter.WritePropertyName("objs");
+
+                jsonWriter.WriteObjectStart();
+
+                jsonWriter.WritePropertyName("id");
+                jsonWriter.Write("root");
+
+                jsonWriter.WritePropertyName("name");
+                jsonWriter.Write("root");
+
+                jsonWriter.WritePropertyName("children");
+
+                jsonWriter.WriteArrayStart();
+
+                List<GameObject> _RootGameObjects = new List<GameObject>();
+                Transform[] arrTransforms = Transform.FindObjectsOfType<Transform>();
+                for (int i = 0; i < arrTransforms.Length; ++i)
+                {
+                    Transform tran = arrTransforms[i];
+                    if (tran.parent == null)
+                    {
+                        _RootGameObjects.Add(tran.gameObject);
+                    }
+                }
+
+                for (int i = 0; i < _RootGameObjects.Count; ++i)
+                {
+                    WriteJsonData(jsonWriter, _RootGameObjects[i]);
+                }
+
+                jsonWriter.WriteArrayEnd();
+
+                jsonWriter.WriteObjectEnd();
+
+
+                jsonWriter.WriteObjectEnd();
+
+                return jsonWriter.ToString();
+            }
+            catch (Exception e)
+            {
+                return e.ToString();
+            }
+        }
+        #endregion
+
+
+        #region 获取Unity版本
+        private object GetUnityVersion(string[] args)
+        {
+            try
+            {
+                return Application.unityVersion;
+            }
+            catch(Exception ex)
+            {
+                return ex.Message.ToString();
+            }
+        }
+        #endregion
+
+        #region 获取sdk版本
+        private object GetSdkVersion(string[] args)
+        {
+            return "1.0.0";
+        }
+        #endregion
+
         #region 检查profilerdata逻辑
         private string GetProfileData()
         {
@@ -169,7 +485,7 @@ namespace Matory
         /// <returns></returns>
         private object GatherProfiler(string[] args)
         {
-            string res = "";
+            string res;
             try
             {
                 bool startArg = args.Length > 1 && (args[1] == "1");
@@ -270,6 +586,7 @@ namespace Matory
             profilerDataPaths.Add(profilerDataPath);
         }
         #endregion
+
         #region 获取UI逻辑
         //获取UI上的文本对象
         private object FindText(string[] args)
@@ -311,6 +628,14 @@ namespace Matory
                 {
                     return text;
                 }
+
+                //寻找是否有InputField组件
+                InputField inputText = child.GetComponent<InputField>();
+                if (inputText != null && inputText.text == currentText)
+                {
+                    return text;
+                }
+                
                 //递归遍历一下子对象
                 GetChildText(child, currentText);
             }
@@ -334,5 +659,117 @@ namespace Matory
         }
         #endregion
 
+    }
+    public static class GameRunTimeDataSet
+    {
+        public static void InitDataSet()
+        {
+            ms_gameObjectDict.Clear();
+            ms_componentDict.Clear();
+        }
+
+        public static void AddGameObject(GameObject obj)
+        {
+            int nInstanceID = obj.GetInstanceID();
+            if (!ms_gameObjectDict.ContainsKey(nInstanceID))
+            {
+                ms_gameObjectDict.Add(nInstanceID, obj);
+            }
+        }
+
+        public static bool TryGetGameObject(int nInstanceID, out GameObject go)
+        {
+            return ms_gameObjectDict.TryGetValue(nInstanceID, out go);
+        }
+
+        public static void AddComponent(Component comp)
+        {
+            int nInstanceID = comp.GetInstanceID();
+            if (!ms_componentDict.ContainsKey(nInstanceID))
+            {
+                ms_componentDict.Add(nInstanceID, comp);
+            }
+        }
+
+        public static bool TryGetComponent(int nInstanceID, out UnityEngine.Component comp)
+        {
+            return ms_componentDict.TryGetValue(nInstanceID, out comp);
+        }
+
+        public static Dictionary<int, GameObject> ms_gameObjectDict = new Dictionary<int, GameObject>();
+        public static Dictionary<int, Component> ms_componentDict = new Dictionary<int, Component>();
+    }
+    public class Error
+    {
+        public readonly static string NotFoundMessage = "error:notFound";
+        public readonly static string ExceptionMessage = "error:exceptionOccur";
+    }
+    public class ReflectionTool
+    {
+        public static PropertyInfo GetPropertyNest(Type t, String name)
+        {
+
+            PropertyInfo pi = t.GetProperty(name);
+
+            if (pi != null)
+            {
+                return pi;
+            }
+
+            if (t.BaseType != null)
+            {
+                return GetPropertyNest(t.BaseType, name);
+            }
+
+            return null;
+        }
+
+        public static object GetComponentAttribute(GameObject target, Type t, String attributeName)
+        {
+            if (target == null || t == null)
+                return null;
+
+            Component component = target.GetComponent(t);
+
+            if (component == null)
+                return null;
+
+            PropertyInfo pi = GetPropertyNest(t, attributeName);
+
+            if (pi == null || !pi.CanRead)
+            {
+                return null;
+            }
+
+            return pi.GetValue(component, null);
+        }
+
+        public static bool SetComponentAttribute(GameObject obj, Type t, String attributeName, object value)
+        {
+
+            if (t == null)
+            {
+                return false;
+            }
+
+            Component comp = obj.GetComponent(t);
+
+            if (comp == null)
+            {
+                return false;
+            }
+
+            PropertyInfo pi = GetPropertyNest(t, attributeName);
+
+
+            if (pi == null || !pi.CanWrite)
+            {
+                return false;
+            }
+
+            pi.SetValue(comp, value, null);
+
+            return true;
+        }
     }
 }
