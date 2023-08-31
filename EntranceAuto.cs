@@ -27,6 +27,8 @@ namespace Matory
         private List<string> profilerDataPaths;
         private string profilerDataName = "";
         private string profilerDataPath = "";
+        private GameObject targetObj;
+        private Dictionary<int, string> idPool = new Dictionary<int, string>(500);
         private void Init()
         {
             DontDestroyOnLoad(this);
@@ -39,6 +41,7 @@ namespace Matory
             m_Pro.funMethods.Add("Check_Profiler",CheckProfilerData);
             m_Pro.funMethods.Add("Get_Hierarchy",GetHierarchy);
             m_Pro.funMethods.Add("Get_Inspector",GetInspector);
+            m_Pro.funMethods.Add("ClickOne", ClickOneButton);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -659,6 +662,62 @@ namespace Matory
         }
         #endregion
 
+        #region 点击UI按钮
+        /// <summary>
+        /// 常规点击按钮
+        /// </summary>
+        /// <param name="args">args[1]是Hierarchy相对路径,args[2]是参数如path</param>
+        /// <returns></returns>
+        private object ClickOneButton(string[] args)
+        {
+            string res;
+            try
+            {
+                if (args[2] == "path")
+                {
+                    var targetpath = args[1].Replace("//", "/");
+                    targetObj = GameObject.Find(targetpath);
+                    if (targetObj && targetObj.activeInHierarchy)
+                    {
+                        idPool.Add(targetObj.GetInstanceID(), targetpath);
+                        targetObj.GetComponent<Button>().onClick?.Invoke();
+                        res = "click it success.";
+                    }
+                    else
+                        res = "it is not found.";
+                    throw new Exception(Error.NotFoundMessage);
+                }
+                else if (args[2] == "id")
+                {
+                    int targetid = int.Parse(args[1]);
+                    var targetpth = string.Empty;
+                    if (idPool.TryGetValue(targetid, out targetpth))
+                    {
+                        targetObj = GameObject.Find(targetpth);
+                        if (targetObj.activeInHierarchy)
+                        {
+                            targetObj.GetComponent<Button>().onClick?.Invoke();
+                            res = "click it success.";
+                        }
+                        else
+                            res = "it has not active yet.";
+                    }
+                    else
+                    {
+                        res = "it is not found.";
+                        throw new Exception(Error.NotFoundMessage);
+                    }
+                }
+                else
+                    res = "Tais args is not supported yet.";
+                return res;
+            }
+            catch(Exception ex)
+            {
+                return ex.Message.ToString();
+            }
+        }
+        #endregion
     }
     public static class GameRunTimeDataSet
     {
