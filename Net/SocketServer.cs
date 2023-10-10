@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using LitJson;
+using System.Diagnostics;
+
 namespace Matory.Net
 {
     public class SocketServer
@@ -16,7 +18,6 @@ namespace Matory.Net
 		private Dictionary<string, string> MsgPool = new Dictionary<string, string>();
 		public delegate ResData MyDelegate(string msg);
 		public MyDelegate mydelegate;
-		private Thread thread;
 		private Socket SockeServer;
 		#region 启动WebSocket服务
 		/// <summary>
@@ -67,11 +68,11 @@ namespace Matory.Net
 				}
 				//准备接受下一个客户端
 				SockeServer.BeginAccept(new AsyncCallback(Accept), SockeServer);
-				//Server.OutLog().Log(string.Format("Client {0} connected", SockeClient.RemoteEndPoint));
+                UnityEngine.Debug.Log(string.Format("Client {0} connected", SockeClient.RemoteEndPoint));
 			}
 			catch (Exception ex)
 			{
-				//Server.OutLog().Log("Error : " + ex.ToString());
+				UnityEngine.Debug.Log("Error : " + ex.ToString());
 			}
 		}
 		#endregion
@@ -108,26 +109,51 @@ namespace Matory.Net
 					msg = AnalyzeClientData(buffer, length);
 					if (!string.IsNullOrEmpty(msg))
 					{
-						thread = new Thread(() =>
-						{
-							result = (ResData)(mydelegate?.Invoke(msg));
-						});
-						thread.Start();
-						thread.Join();
+						result = mydelegate?.Invoke(msg);
 					}
 					else
 						result = new ResData(404, false,"");
+
+					JsonWriter jw = new JsonWriter();
+					jw.WriteObjectStart();
+					jw.WritePropertyName("Code");
+					jw.Write(result.Code);
+					jw.WritePropertyName("Msg");
+					jw.Write(result.Msg);
+					jw.WritePropertyName("Data");
+					jw.Write(result.Data);
+					jw.WriteObjectEnd();
+
+					byte[] msgBuffer = PackageServerData(jw.ToString());
+					foreach (Session se in SessionPool.Values)
+					{
+						se.SockeClient.Send(msgBuffer, msgBuffer.Length, SocketFlags.None);
+					}
 				}
-				byte[] msgBuffer = PackageServerData(JsonMapper.ToJson(result));
-				foreach (Session se in SessionPool.Values)
-				{
-					se.SockeClient.Send(msgBuffer, msgBuffer.Length, SocketFlags.None);
+                else
+                {
+					string res = "{'Code':200,'Msg':'test111'}";
+					byte[] msgBuffer = PackageServerData(res);
+					foreach (Session se in SessionPool.Values)
+					{
+						se.SockeClient.Send(msgBuffer, msgBuffer.Length, SocketFlags.None);
+					}
 				}
+
 			}
-			catch
+			catch(Exception ex)
 			{
+				UnityEngine.Debug.Log(ex);
+				// 获取堆栈跟踪信息
+				StackTrace stackTrace = new StackTrace(ex, true);
+				// 获取错误发生的第一行代码
+				StackFrame frame = stackTrace.GetFrame(0);
+				int lineNumber = frame.GetFileLineNumber();
+
+				UnityEngine.Debug.Log("错误发生在第 " + lineNumber + " 行代码。");
+
 				SockeClient.Disconnect(true);
-				//Server.OutLog().Log("客户端 {0} 断开连接" + IP);
+                UnityEngine.Debug.Log("客户端 {0} 断开连接" + IP);
 				SessionPool.Remove(IP);
 			}
 		}
