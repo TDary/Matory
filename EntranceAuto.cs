@@ -64,22 +64,15 @@ namespace Matory
         public ResData ParseData(string msg)
         {
             ResData res;
-            if (msg != null)
+            try
             {
-                try
-                {
-                    var resData = JsonMapper.ToObject<TransData>(msg);
-                    var result = m_Pro.RunMethod(m_Pro.funMethods, resData);
-                    res = new ResData(200, true, JsonMapper.ToJson(result));
-                }
-                catch(Exception ex)
-                {
-                    res = new ResData(500, false, ex.Message.ToString());
-                }
+                var resData = JsonMapper.ToObject<TransData>(msg);
+                var result = m_Pro.RunMethod(m_Pro.funMethods, resData);
+                res = new ResData(200, true, JsonMapper.ToJson(result));
             }
-            else
+            catch(Exception ex)
             {
-                res = new ResData(400,false,"The given msg is null");
+                res = new ResData(500, false, ex.Message.ToString());
             }
             return res;
         }

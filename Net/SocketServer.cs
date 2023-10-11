@@ -132,26 +132,32 @@ namespace Matory.Net
 				}
                 else
                 {
-					string res = "{'Code':200,'Msg':'test111'}";
-					byte[] msgBuffer = PackageServerData(res);
-					foreach (Session se in SessionPool.Values)
+					//普通socket连接，性能更好
+					if (!string.IsNullOrEmpty(msg))
 					{
-						se.SockeClient.Send(msgBuffer, msgBuffer.Length, SocketFlags.None);
+						var res = mydelegate?.Invoke(msg);
+						JsonWriter jw = new JsonWriter();
+						jw.WriteObjectStart();
+						jw.WritePropertyName("Code");
+						jw.Write(result.Code);
+						jw.WritePropertyName("Msg");
+						jw.Write(result.Msg);
+						jw.WritePropertyName("Data");
+						jw.Write(result.Data);
+						jw.WriteObjectEnd();
+						byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+						SockeClient.Send(msgBuffer);
 					}
+                    else
+                    {
+						//空，不管
+                    }
 				}
 
 			}
 			catch(Exception ex)
 			{
 				UnityEngine.Debug.Log(ex);
-				// 获取堆栈跟踪信息
-				StackTrace stackTrace = new StackTrace(ex, true);
-				// 获取错误发生的第一行代码
-				StackFrame frame = stackTrace.GetFrame(0);
-				int lineNumber = frame.GetFileLineNumber();
-
-				UnityEngine.Debug.Log("错误发生在第 " + lineNumber + " 行代码。");
-
 				SockeClient.Disconnect(true);
                 UnityEngine.Debug.Log("客户端 {0} 断开连接" + IP);
 				SessionPool.Remove(IP);
