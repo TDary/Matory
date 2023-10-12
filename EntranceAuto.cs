@@ -27,7 +27,7 @@ namespace Matory
         private string profilerDataPath = "";
         private GameObject targetObj;
         private Dictionary<int, string> idPool = new Dictionary<int, string>(500);
-        private void Init()
+        public void Init()
         {
             DontDestroyOnLoad(this);
             m_Pro = new MsgProfiler();
@@ -47,7 +47,7 @@ namespace Matory
                 bool thisport = IsPortInUse(port + i);
                 if (thisport)
                 {
-                    Debug.Log($"This port {thisport} is in used");
+                    Debug.Log($"This port {port + i} is in used");
                     continue;
                 }
                 else
@@ -55,7 +55,7 @@ namespace Matory
                     webs = new SocketServer();
                     webs.start(port + i);    //监听端口号
                     webs.mydelegate = ParseData;
-                    Debug.Log($"Listen success for {thisport}");
+                    Debug.Log($"Matory is Listen success for {port + i}");
                     break;
                 }
             }
@@ -818,72 +818,72 @@ namespace Matory
         public readonly static string NotFoundMessage = "error:notFound";
         public readonly static string ExceptionMessage = "error:exceptionOccur";
     }
-    public class ReflectionTool
-    {
-        public static PropertyInfo GetPropertyNest(Type t, String name)
-        {
+    //public class ReflectionTool
+    //{
+    //    public static PropertyInfo GetPropertyNest(Type t, String name)
+    //    {
 
-            PropertyInfo pi = t.GetProperty(name);
+    //        PropertyInfo pi = t.GetProperty(name);
 
-            if (pi != null)
-            {
-                return pi;
-            }
+    //        if (pi != null)
+    //        {
+    //            return pi;
+    //        }
 
-            if (t.BaseType != null)
-            {
-                return GetPropertyNest(t.BaseType, name);
-            }
+    //        if (t.BaseType != null)
+    //        {
+    //            return GetPropertyNest(t.BaseType, name);
+    //        }
 
-            return null;
-        }
+    //        return null;
+    //    }
 
-        public static object GetComponentAttribute(GameObject target, Type t, String attributeName)
-        {
-            if (target == null || t == null)
-                return null;
+    //    public static object GetComponentAttribute(GameObject target, Type t, String attributeName)
+    //    {
+    //        if (target == null || t == null)
+    //            return null;
 
-            Component component = target.GetComponent(t);
+    //        Component component = target.GetComponent(t);
 
-            if (component == null)
-                return null;
+    //        if (component == null)
+    //            return null;
 
-            PropertyInfo pi = GetPropertyNest(t, attributeName);
+    //        PropertyInfo pi = GetPropertyNest(t, attributeName);
 
-            if (pi == null || !pi.CanRead)
-            {
-                return null;
-            }
+    //        if (pi == null || !pi.CanRead)
+    //        {
+    //            return null;
+    //        }
 
-            return pi.GetValue(component, null);
-        }
+    //        return pi.GetValue(component, null);
+    //    }
 
-        public static bool SetComponentAttribute(GameObject obj, Type t, String attributeName, object value)
-        {
+    //    public static bool SetComponentAttribute(GameObject obj, Type t, String attributeName, object value)
+    //    {
 
-            if (t == null)
-            {
-                return false;
-            }
+    //        if (t == null)
+    //        {
+    //            return false;
+    //        }
 
-            Component comp = obj.GetComponent(t);
+    //        Component comp = obj.GetComponent(t);
 
-            if (comp == null)
-            {
-                return false;
-            }
+    //        if (comp == null)
+    //        {
+    //            return false;
+    //        }
 
-            PropertyInfo pi = GetPropertyNest(t, attributeName);
+    //        PropertyInfo pi = GetPropertyNest(t, attributeName);
 
 
-            if (pi == null || !pi.CanWrite)
-            {
-                return false;
-            }
+    //        if (pi == null || !pi.CanWrite)
+    //        {
+    //            return false;
+    //        }
 
-            pi.SetValue(comp, value, null);
+    //        pi.SetValue(comp, value, null);
 
-            return true;
-        }
-    }
+    //        return true;
+    //    }
+    //}
 }
