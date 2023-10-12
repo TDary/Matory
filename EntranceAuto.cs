@@ -66,9 +66,9 @@ namespace Matory
             ResData res;
             try
             {
-                var resData = fastJSON.JSON.ToObject<TransData>(msg);
+                var resData = JsonMapper.ToObject<TransData>(msg);
                 var result = m_Pro.RunMethod(m_Pro.funMethods, resData);
-                res = new ResData(200, true, fastJSON.JSON.ToJSON(result));
+                res = new ResData(200, true, JsonMapper.ToJson(result));
             }
             catch(Exception ex)
             {
