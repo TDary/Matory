@@ -1,5 +1,4 @@
-﻿using LitJson;
-using Matory.Net;
+﻿using Matory.Net;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -9,6 +8,7 @@ using System;
 using System.Collections;
 using UnityEngine.Profiling;
 using System.Reflection;
+using LitJson;
 
 namespace Matory
 {
@@ -66,9 +66,9 @@ namespace Matory
             ResData res;
             try
             {
-                var resData = JsonMapper.ToObject<TransData>(msg);
+                var resData = fastJSON.JSON.ToObject<TransData>(msg);
                 var result = m_Pro.RunMethod(m_Pro.funMethods, resData);
-                res = new ResData(200, true, JsonMapper.ToJson(result));
+                res = new ResData(200, true, fastJSON.JSON.ToJSON(result));
             }
             catch(Exception ex)
             {

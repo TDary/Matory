@@ -123,16 +123,6 @@
     <Compile Include="DataAO\ResData.cs" />
     <Compile Include="DataAO\TransData.cs" />
     <Compile Include="EntranceAuto.cs" />
-    <Compile Include="LitJson\IJsonWrapper.cs" />
-    <Compile Include="LitJson\JsonData.cs" />
-    <Compile Include="LitJson\JsonException.cs" />
-    <Compile Include="LitJson\JsonMapper.cs" />
-    <Compile Include="LitJson\JsonMockWrapper.cs" />
-    <Compile Include="LitJson\JsonReader.cs" />
-    <Compile Include="LitJson\JsonWriter.cs" />
-    <Compile Include="LitJson\Lexer.cs" />
-    <Compile Include="LitJson\Netstandard15Polyfill.cs" />
-    <Compile Include="LitJson\ParserToken.cs" />
     <Compile Include="MatoryServer\MsgProfiler.cs" />
     <Compile Include="MatoryServer\ParseServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -141,11 +131,17 @@
     <EmbeddedResource Include="Properties\Matory.rd.xml" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="fastJSON">
+      <Version>2.4.0.4</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
       <Version>6.2.13</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="LitJson">
+      <HintPath>LitJson\LitJson.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>E:\Unity\2019.4.0f1\Editor\Data\Managed\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
@@ -165,15 +161,9 @@
       <HintPath>E:\Unity\2019.4.0f1\Editor\Data\Managed\UnityEngine\UnityEngine.UIModule.dll</HintPath>
     </Reference>
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
-    <None Include="LitJson\AssemblyInfo.cs.in" />
-    <None Include="LitJson\LitJSON.csproj" />
     <None Include="UAutoSDK_NGUI.unitypackage" />
     <None Include="UAutoSDK_UGUI.unitypackage" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="LitJson\litjson.png" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
