@@ -5,7 +5,6 @@
 // Feedback: mailto:ellan@gameframework.cn
 //------------------------------------------------------------
 
-using GameFramework;
 using LitJson;
 using System;
 
@@ -14,7 +13,7 @@ namespace Flower
     /// <summary>
     /// LitJSON 函数集辅助器。
     /// </summary>
-    internal class LitJsonHelper : Utility.Json.IJsonHelper
+    internal class LitJsonHelper
     {
         /// <summary>
         /// 将对象序列化为 JSON 字符串。

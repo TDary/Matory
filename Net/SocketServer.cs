@@ -9,14 +9,15 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using LitJson;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace Matory.Net
 {
     public class SocketServer
     {
 		private Dictionary<string, Session> SessionPool = new Dictionary<string, Session>();
-		private Dictionary<string, string> MsgPool = new Dictionary<string, string>();
-		public delegate ResData MyDelegate(string msg);
+		public ConcurrentQueue<MsgForSend> MsgPool = new ConcurrentQueue<MsgForSend>();  //线程安全队列
+		public delegate ResData MyDelegate(string ip,string msg);
 		public MyDelegate mydelegate;
 		private Socket SockeServer;
 		#region 启动WebSocket服务
@@ -109,7 +110,7 @@ namespace Matory.Net
 					msg = AnalyzeClientData(buffer, length);
 					if (!string.IsNullOrEmpty(msg))
 					{
-						result = mydelegate?.Invoke(msg);
+						result = mydelegate?.Invoke(IP,msg);
 					}
 					else
 						result = new ResData(404, false,"");
@@ -135,7 +136,7 @@ namespace Matory.Net
 					//普通socket连接，性能更好
 					if (!string.IsNullOrEmpty(msg))
 					{
-						var res = mydelegate?.Invoke(msg);
+						var res = mydelegate?.Invoke(IP,msg);
 						JsonWriter jw = new JsonWriter();
 						jw.WriteObjectStart();
 						jw.WritePropertyName("Code");
@@ -150,7 +151,23 @@ namespace Matory.Net
 					}
                     else
                     {
-						//空，不管
+                        //检测是否有需要发送的消息队列，进行发送消息数据
+                        if (MsgPool.Count != 0)
+                        {
+							MsgForSend data = null;
+							if (MsgPool.TryDequeue(out data))
+							{
+								foreach (Session se in SessionPool.Values)
+								{
+									if (se.IP == data.Ip)
+									{
+										byte[] msgBuffer = Encoding.UTF8.GetBytes(data.Msg);
+										se.SockeClient.Send(msgBuffer);
+										break;
+									}
+								}
+							}
+						}
                     }
 				}
 

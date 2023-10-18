@@ -9,12 +9,15 @@ using System.Collections;
 using UnityEngine.Profiling;
 using System.Reflection;
 using LitJson;
+using Cysharp.Threading.Tasks;
+using Matory.DataAO;
+using Matory.Server;
 
 namespace Matory
 {
     public class Mato : MonoBehaviour
     {
-        private SocketServer webs;
+        private SocketServer socketServer;
         private int port = 2666;
         private bool startGatherMsg = false;
         private bool isGathering = false;
@@ -41,7 +44,7 @@ namespace Matory
             m_Pro.funMethods.Add("Get_Hierarchy",GetHierarchy);
             m_Pro.funMethods.Add("Get_Inspector",GetInspector);
             m_Pro.funMethods.Add("ClickOne", ClickOneButton);
-            m_Pro.funMethods.Add("OpenScreenShot",StartScreenShot);
+            m_Pro.funMethods.Add("GetScreenShot",GetScreenShot);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -52,22 +55,22 @@ namespace Matory
                 }
                 else
                 {
-                    webs = new SocketServer();
-                    webs.start(port + i);    //监听端口号
-                    webs.mydelegate = ParseData;
+                    socketServer = new SocketServer();
+                    socketServer.start(port + i);    //监听端口号
+                    socketServer.mydelegate = ParseData;
                     Debug.Log($"Matory is Listen success for {port + i}");
                     break;
                 }
             }
         }
 
-        public ResData ParseData(string msg)
+        public ResData ParseData(string ip,string msg)
         {
             ResData res;
             try
             {
                 var resData = JsonMapper.ToObject<TransData>(msg);
-                var result = m_Pro.RunMethod(m_Pro.funMethods, resData);
+                var result = m_Pro.RunMethod(ip,m_Pro.funMethods, resData);
                 res = new ResData(200, true, JsonMapper.ToJson(result));
             }
             catch(Exception ex)
@@ -117,11 +120,11 @@ namespace Matory
         /// 关闭连接
         /// </summary>
         /// <returns></returns>
-        private object StopConnection(string[] args)
+        private object StopConnection(string ip,string[] args)
         {
-            if (webs != null)
+            if (socketServer != null)
             {
-                webs.stop();
+                socketServer.stop();
             }
             return null;
         }
@@ -264,7 +267,7 @@ namespace Matory
 
             jw.WriteObjectEnd();
         }
-        private object GetInspector(string[] args)
+        private object GetInspector(string ip, string[] args)
         {
             try
             {
@@ -347,7 +350,7 @@ namespace Matory
 
             jw.WriteObjectEnd();
         }
-        private object GetHierarchy(string[] args)
+        private object GetHierarchy(string ip, string[] args)
         {
             try
             {
@@ -403,7 +406,7 @@ namespace Matory
 
 
         #region 获取Unity版本
-        private object GetUnityVersion(string[] args)
+        private object GetUnityVersion(string ip,string[] args)
         {
             try
             {
@@ -417,7 +420,7 @@ namespace Matory
         #endregion
 
         #region 获取sdk版本
-        private object GetSdkVersion(string[] args)
+        private object GetSdkVersion(string ip,string[] args)
         {
             return "1.0.0";
         }
@@ -450,7 +453,7 @@ namespace Matory
 
             return jw.ToString();
         }
-        private object CheckProfilerData(string[] args)
+        private object CheckProfilerData(string ip, string[] args)
         {
             try
             {
@@ -464,7 +467,6 @@ namespace Matory
         #endregion
 
         #region 采集UnityProfilerData逻辑
-        private IEnumerator startGatherProfilerEnum = null;
         private void InitProfiler()
         {
             frameNum = 0;
@@ -479,7 +481,7 @@ namespace Matory
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        private object GatherProfiler(string[] args)
+        private object GatherProfiler(string ip, string[] args)
         {
             string res;
             try
@@ -489,12 +491,10 @@ namespace Matory
 
                 if (startArg)
                 {
-                    if (startGatherProfilerEnum == null)
+                    if (!startGatherMsg)
                     {
                         startGatherMsg = true;
-                        startGatherProfilerEnum = StartGatherProfiler();
-                        StartCoroutine(startGatherProfilerEnum);
-
+                        StartGatherProfiler();
                         res = "start gather profiler.";
                     }
                     else
@@ -504,17 +504,13 @@ namespace Matory
                 }
                 else
                 {
-                    if (startGatherProfilerEnum != null)
+                    if (startGatherMsg)
                     {
                         if (isGathering)
                         {
                             startGatherMsg = false;
                             StopGather();
                         }
-
-                        StopCoroutine(startGatherProfilerEnum);
-                        startGatherProfilerEnum = null;
-
                         res = "stop gather profiler.";
                     }
                     else
@@ -528,7 +524,7 @@ namespace Matory
             return res;
         }
 
-        IEnumerator StartGatherProfiler()
+        private async UniTaskVoid StartGatherProfiler()
         {
             InitProfiler();
             while (startGatherMsg)
@@ -546,12 +542,12 @@ namespace Matory
                 }
                 else
                 {
-                    BeginGather("AutoTest-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
+                    BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
                     isGathering = true;
                     frameNum++;
                 }
             }
-            yield return null;
+            await UniTask.Yield();
         }
 
         private void BeginGather(string fileName)
@@ -590,7 +586,7 @@ namespace Matory
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        private object FindAllButton(string[] args)
+        private object FindAllButton(string ip, string[] args)
         {
             JsonWriter jw = new JsonWriter();
             jw.WriteArrayStart();
@@ -614,7 +610,7 @@ namespace Matory
         }
 
         //获取UI上的文本对象
-        private object FindText(string[] args)
+        private object FindText(string ip, string[] args)
         {
             List<string> allres = new List<string>();
             Canvas[] allcanva = FindObjectsOfType<Canvas>();
@@ -692,13 +688,12 @@ namespace Matory
         }
         #endregion
 
-        #region 开启截图功能
-
-        private object StartScreenShot(string[] args)
+        #region 获取截图功能
+        private object GetScreenShot(string ip, string[] args)
         {
             try
             {
-                StartCoroutine(ScreenShotCoroutine());
+                ScreenShotTask(ip);
                 return "ok";
             }
             catch(Exception ex)
@@ -707,14 +702,27 @@ namespace Matory
             }
         }
 
-        private IEnumerator ScreenShotCoroutine()
+        //private IEnumerator ScreenShotCoroutine()
+        //{
+        //    yield return new WaitForEndOfFrame();
+        //    Texture2D screenshot = UnityEngine.ScreenCapture.CaptureScreenshotAsTexture();
+        //    byte[] bytesPNG = UnityEngine.ImageConversion.EncodeToPNG(screenshot);
+        //    string pngAsString = Convert.ToBase64String(bytesPNG);
+        //    //server.Send(client.TcpClient, prot.pack(pngAsString));
+        //}
+
+        private async UniTaskVoid ScreenShotTask(string ip)
         {
-            yield return new WaitForEndOfFrame();
             Texture2D screenshot = UnityEngine.ScreenCapture.CaptureScreenshotAsTexture();
             byte[] bytesPNG = UnityEngine.ImageConversion.EncodeToPNG(screenshot);
             string pngAsString = Convert.ToBase64String(bytesPNG);
-            //server.Send(client.TcpClient, prot.pack(pngAsString));
+            MsgForSend sendmsg = new MsgForSend();
+            sendmsg.Ip = ip;
+            sendmsg.Msg = pngAsString;
+            socketServer.MsgPool.Enqueue(sendmsg);
+            await UniTask.Yield();
         }
+
         #endregion
 
         #region 点击UI按钮
@@ -723,7 +731,7 @@ namespace Matory
         /// </summary>
         /// <param name="args">args[1]是Hierarchy相对路径,args[2]是参数如path</param>
         /// <returns></returns>
-        private object ClickOneButton(string[] args)
+        private object ClickOneButton(string ip, string[] args)
         {
             string res;
             try

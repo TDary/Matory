@@ -1,12 +1,15 @@
-﻿public class ResData
+﻿namespace Matory.DataAO
 {
-    public int Code { get; set; }
-    public bool Msg { get; set; }
-    public string Data { get; set; }
-    public ResData(int code, bool msg,string data)
+    public class ResData
     {
-        this.Code = code;
-        this.Msg = msg;
-        this.Data = data;
+        public int Code { get; set; }
+        public bool Msg { get; set; }
+        public string Data { get; set; }
+        public ResData(int code, bool msg, string data)
+        {
+            this.Code = code;
+            this.Msg = msg;
+            this.Data = data;
+        }
     }
 }

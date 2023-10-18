@@ -1,5 +1,8 @@
-﻿public class TransData
+﻿namespace Matory.DataAO
 {
-    public string FuncName { get; set; }
-    public string[] FuncArgs { get; set; }
+    public class TransData
+    {
+        public string FuncName { get; set; }
+        public string[] FuncArgs { get; set; }
+    }
 }
