@@ -29,6 +29,7 @@ namespace Matory.Net
 			SockeServer.Bind(new IPEndPoint(IPAddress.Any, port));
 			SockeServer.Listen(20);
 			SockeServer.BeginAccept(new AsyncCallback(Accept), SockeServer);
+			SessionPool.Clear();   //启动前清理一次
 		}
 		#endregion
 

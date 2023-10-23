@@ -5,17 +5,14 @@ using System.Net.NetworkInformation;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
-using System.Collections;
 using UnityEngine.Profiling;
 using System.Reflection;
 using LitJson;
 using Cysharp.Threading.Tasks;
 using Matory.DataAO;
 using Matory.Server;
-using System.Net.Sockets;
 using System.Text;
 using System.Collections.Concurrent;
-using System.Threading;
 
 namespace Matory
 {
@@ -37,7 +34,8 @@ namespace Matory
         private ConcurrentQueue<MsgForSend> SendMsgPool = new ConcurrentQueue<MsgForSend>();
         private ConcurrentQueue<TransData> GetMsgPool = new ConcurrentQueue<TransData>();
         private Dictionary<string,TransData> GetTransDataPool = new Dictionary<string,TransData>(20);
-        private float deltTime = 0;
+        private int requestCount = 0;
+        private int sendCount = 0;
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -74,93 +72,96 @@ namespace Matory
 
         void Update()
         {
-            deltTime++;
-            if (deltTime > 1)
+            if (requestCount > 0 || sendCount > 0)
             {
-                if (GetMsgPool.Count != 0)   //处理函数并执行，返回消息给客户端
+                while (requestCount > 0 || sendCount > 0)
                 {
-                    TransData data = null;
-                    ResData res = null;
-                    if (GetMsgPool.TryDequeue(out data))
+                    if (GetMsgPool.Count != 0)   //处理函数并执行，返回消息给客户端
                     {
-                        foreach (var item in GetTransDataPool)
+                        TransData data = null;
+                        ResData res = null;
+                        if (GetMsgPool.TryDequeue(out data))
                         {
-                            if (item.Value.FuncArgs == data.FuncArgs && item.Value.FuncName == data.FuncName)
+                            foreach (var item in GetTransDataPool)
                             {
-                                var result = m_Pro.RunMethod(item.Key, m_Pro.funMethods, data);
-                                if (result != null)
+                                if (item.Value.FuncArgs == data.FuncArgs && item.Value.FuncName == data.FuncName)
                                 {
-                                    string resMsg = result.ToString();
-                                    res = new ResData(200, true, resMsg);
-                                    foreach (var session in socketServer.SessionPool.Values)
+                                    var result = m_Pro.RunMethod(item.Key, m_Pro.funMethods, data);
+                                    if (result != null)
                                     {
-                                        if (session.IP == item.Key)
+                                        string resMsg = result.ToString();
+                                        res = new ResData(200, true, resMsg);
+                                        foreach (var session in socketServer.SessionPool.Values)
                                         {
-                                            JsonWriter jw = new JsonWriter();
-                                            jw.WriteObjectStart();
-                                            jw.WritePropertyName("Code");
-                                            jw.Write(res.Code);
-                                            jw.WritePropertyName("Msg");
-                                            jw.Write(res.Msg);
-                                            jw.WritePropertyName("Data");
-                                            jw.Write(res.Data);
-                                            jw.WriteObjectEnd();
-                                            byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-                                            session.SockeClient.Send(msgBuffer);
-                                            break;
+                                            if (session.IP == item.Key)
+                                            {
+                                                JsonWriter jw = new JsonWriter();
+                                                jw.WriteObjectStart();
+                                                jw.WritePropertyName("Code");
+                                                jw.Write(res.Code);
+                                                jw.WritePropertyName("Msg");
+                                                jw.Write(res.Msg);
+                                                jw.WritePropertyName("Data");
+                                                jw.Write(res.Data);
+                                                jw.WriteObjectEnd();
+                                                byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                                session.SockeClient.Send(msgBuffer);
+                                                break;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        foreach (var session in socketServer.SessionPool.Values)
+                                        {
+                                            if (session.IP == item.Key)
+                                            {
+                                                JsonWriter jw = new JsonWriter();
+                                                jw.WriteObjectStart();
+                                                jw.WritePropertyName("Code");
+                                                jw.Write(200);
+                                                jw.WritePropertyName("Msg");
+                                                jw.Write(true);
+                                                jw.WritePropertyName("Data");
+                                                jw.Write("This Function is not found.");
+                                                jw.WriteObjectEnd();
+                                                byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                                session.SockeClient.Send(msgBuffer);
+                                                break;
+                                            }
                                         }
                                     }
+                                }
+                            }
+                            requestCount--;
+                        }
+                    }
+                    else if (SendMsgPool.Count != 0)   //返回消息给客户端
+                    {
+                        MsgForSend data = null;
+                        if (SendMsgPool.TryDequeue(out data))
+                        {
+                            foreach (var session in socketServer.SessionPool.Values)
+                            {
+                                if (session.IP == data.Ip)
+                                {
+                                    JsonWriter jw = new JsonWriter();
+                                    jw.WriteObjectStart();
+                                    jw.WritePropertyName("Code");
+                                    jw.Write(200);
+                                    jw.WritePropertyName("Msg");
+                                    jw.Write(data.Msg);
+                                    jw.WriteObjectEnd();
+                                    byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                    session.SockeClient.Send(msgBuffer);
                                     break;
                                 }
-                                else
-                                {
-                                    foreach (var session in socketServer.SessionPool.Values)
-                                    {
-                                        if (session.IP == item.Key)
-                                        {
-                                            JsonWriter jw = new JsonWriter();
-                                            jw.WriteObjectStart();
-                                            jw.WritePropertyName("Code");
-                                            jw.Write(200);
-                                            jw.WritePropertyName("Msg");
-                                            jw.Write(true);
-                                            jw.WritePropertyName("Data");
-                                            jw.Write("This Function is not found.");
-                                            jw.WriteObjectEnd();
-                                            byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-                                            session.SockeClient.Send(msgBuffer);
-                                            break;
-                                        }
-                                    }
-                                }
                             }
                         }
+                        sendCount--;
                     }
                 }
-                if (SendMsgPool.Count != 0)   //返回消息给客户端
-                {
-                    MsgForSend data = null;
-                    if (SendMsgPool.TryDequeue(out data))
-                    {
-                        foreach (var session in socketServer.SessionPool.Values)
-                        {
-                            if (session.IP == data.Ip)
-                            {
-                                JsonWriter jw = new JsonWriter();
-                                jw.WriteObjectStart();
-                                jw.WritePropertyName("Code");
-                                jw.Write(200);
-                                jw.WritePropertyName("Msg");
-                                jw.Write(data.Msg);
-                                jw.WriteObjectEnd();
-                                byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-                                session.SockeClient.Send(msgBuffer);
-                                break;
-                            }
-                        }
-                    }
-                }
-                deltTime = 0;
             }
         }
 
@@ -168,17 +169,12 @@ namespace Matory
         {
             TransData data = null;
             var runData = JsonMapper.ToObject<TransData>(msg);
-            lock (GetTransDataPool)
-            {
-                if (GetTransDataPool.TryGetValue(ip, out data))
-                    GetTransDataPool[ip] = runData;
-                else
-                    GetTransDataPool.Add(ip, runData);
-            }
-            lock (GetMsgPool)
-            {
-                GetMsgPool.Enqueue(runData);
-            } 
+            if (GetTransDataPool.TryGetValue(ip, out data))
+                GetTransDataPool[ip] = runData;
+            else
+                GetTransDataPool.Add(ip, runData);
+            GetMsgPool.Enqueue(runData);
+            requestCount += 1;
         }
 
         /// <summary>
@@ -724,7 +720,17 @@ namespace Matory
                     allres.Add(currentUIPath);
                 }
             }
-            return allres;
+            JsonWriter jw = new JsonWriter();
+            jw.WriteObjectStart();
+            jw.WritePropertyName("allpath");
+            jw.WriteArrayStart();
+            foreach(var item in allres)
+            {
+                jw.Write(item);
+            }
+            jw.WriteArrayEnd();
+            jw.WriteObjectEnd();
+            return jw.ToString();
         }
 
         //获取元素的层级路径
@@ -812,6 +818,7 @@ namespace Matory
             sendmsg.Ip = ip;
             sendmsg.Msg = pngAsString;
             SendMsgPool.Enqueue(sendmsg);
+            sendCount += 1;
             await UniTask.Yield();
         }
 
