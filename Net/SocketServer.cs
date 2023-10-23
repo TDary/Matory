@@ -108,7 +108,8 @@ namespace Matory.Net
 					msg = AnalyzeClientData(buffer, length);
 					if (!string.IsNullOrEmpty(msg))
 					{
-						mydelegate?.Invoke(IP, msg);
+						//mydelegate?.Invoke(IP, msg);
+						SockeClient.Send(PackageHandShakeData(buffer, length));
 					}
 				}
                 else
