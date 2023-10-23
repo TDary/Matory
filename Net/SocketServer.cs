@@ -136,7 +136,7 @@ namespace Matory.Net
 					//普通socket连接，性能更好
 					if (!string.IsNullOrEmpty(msg))
 					{
-						var res = mydelegate?.Invoke(IP,msg);
+						result = mydelegate?.Invoke(IP,msg);
 						JsonWriter jw = new JsonWriter();
 						jw.WriteObjectStart();
 						jw.WritePropertyName("Code");

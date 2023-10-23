@@ -1,5 +1,7 @@
 ﻿using Matory.DataAO;
+using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Matory.Server
 {
@@ -15,9 +17,18 @@ namespace Matory.Server
 
         public object RunMethod(string remoteIp,Dictionary<string, FunMethod> allfun, TransData data)
         {
-            FunMethod currentFunc;
-            allfun.TryGetValue(data.FuncName, out currentFunc);
-            return currentFunc?.Invoke(remoteIp,data.FuncArgs);
+            try
+            {
+                FunMethod currentFunc;
+                allfun.TryGetValue(data.FuncName, out currentFunc);
+                var res = currentFunc?.Invoke(remoteIp, data.FuncArgs);
+                return res;
+            }
+            catch(Exception ex)
+            {
+                Debug.LogException(ex);
+                return null;
+            }
         }
     }
 }

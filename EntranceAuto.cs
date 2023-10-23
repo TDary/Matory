@@ -70,8 +70,14 @@ namespace Matory
             try
             {
                 var resData = JsonMapper.ToObject<TransData>(msg);
-                var result = m_Pro.RunMethod(ip,m_Pro.funMethods, resData);
-                res = new ResData(200, true, JsonMapper.ToJson(result));
+                var result = m_Pro.RunMethod(ip, m_Pro.funMethods, resData);
+                if (result != null)
+                {
+                    string resMsg = result.ToString();
+                    res = new ResData(200, true, resMsg);
+                }
+                else
+                    throw new Exception("There has some errors.");
             }
             catch(Exception ex)
             {
