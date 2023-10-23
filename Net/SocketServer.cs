@@ -15,9 +15,8 @@ namespace Matory.Net
 {
     public class SocketServer
     {
-		private Dictionary<string, Session> SessionPool = new Dictionary<string, Session>();
-		public ConcurrentQueue<MsgForSend> MsgPool = new ConcurrentQueue<MsgForSend>();  //线程安全队列
-		public delegate ResData MyDelegate(string ip,string msg);
+		public Dictionary<string, Session> SessionPool = new Dictionary<string, Session>();
+		public delegate void MyDelegate(string ip,string msg);
 		public MyDelegate mydelegate;
 		private Socket SockeServer;
 		#region 启动WebSocket服务
@@ -97,7 +96,6 @@ namespace Matory.Net
 				byte[] buffer = SessionPool[IP].buffer;
 				SockeClient.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, new AsyncCallback(Recieve), SockeClient);
 				string msg = Encoding.UTF8.GetString(buffer, 0, length);
-				ResData result = null;
 				// websocket建立连接的时候，除了TCP连接的三次握手，websocket协议中客户端与服务器想建立连接需要一次额外的握手动作
 				if (msg.Contains("Sec-WebSocket-Key"))
 				{
@@ -110,25 +108,7 @@ namespace Matory.Net
 					msg = AnalyzeClientData(buffer, length);
 					if (!string.IsNullOrEmpty(msg))
 					{
-						result = mydelegate?.Invoke(IP,msg);
-					}
-					else
-						result = new ResData(404, false,"");
-
-					JsonWriter jw = new JsonWriter();
-					jw.WriteObjectStart();
-					jw.WritePropertyName("Code");
-					jw.Write(result.Code);
-					jw.WritePropertyName("Msg");
-					jw.Write(result.Msg);
-					jw.WritePropertyName("Data");
-					jw.Write(result.Data);
-					jw.WriteObjectEnd();
-
-					byte[] msgBuffer = PackageServerData(jw.ToString());
-					foreach (Session se in SessionPool.Values)
-					{
-						se.SockeClient.Send(msgBuffer, msgBuffer.Length, SocketFlags.None);
+						mydelegate?.Invoke(IP, msg);
 					}
 				}
                 else
@@ -136,41 +116,9 @@ namespace Matory.Net
 					//普通socket连接，性能更好
 					if (!string.IsNullOrEmpty(msg))
 					{
-						result = mydelegate?.Invoke(IP,msg);
-						JsonWriter jw = new JsonWriter();
-						jw.WriteObjectStart();
-						jw.WritePropertyName("Code");
-						jw.Write(result.Code);
-						jw.WritePropertyName("Msg");
-						jw.Write(result.Msg);
-						jw.WritePropertyName("Data");
-						jw.Write(result.Data);
-						jw.WriteObjectEnd();
-						byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-						SockeClient.Send(msgBuffer);
+						mydelegate?.Invoke(IP,msg);
 					}
-                    else
-                    {
-                        //检测是否有需要发送的消息队列，进行发送消息数据
-                        if (MsgPool.Count != 0)
-                        {
-							MsgForSend data = null;
-							if (MsgPool.TryDequeue(out data))
-							{
-								foreach (Session se in SessionPool.Values)
-								{
-									if (se.IP == data.Ip)
-									{
-										byte[] msgBuffer = Encoding.UTF8.GetBytes(data.Msg);
-										se.SockeClient.Send(msgBuffer);
-										break;
-									}
-								}
-							}
-						}
-                    }
 				}
-
 			}
 			catch(Exception ex)
 			{
