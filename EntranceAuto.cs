@@ -8,11 +8,14 @@ using System;
 using UnityEngine.Profiling;
 using System.Reflection;
 using LitJson;
-using Cysharp.Threading.Tasks;
 using Matory.DataAO;
 using Matory.Server;
 using System.Text;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
+using System.Collections;
+using System.Linq;
+using System.IO;
 
 namespace Matory
 {
@@ -36,11 +39,14 @@ namespace Matory
         private Dictionary<string,TransData> GetTransDataPool = new Dictionary<string,TransData>(20);
         private int requestCount = 0;
         private int sendCount = 0;
+        private string Profiler_path;
+        private List<string> Collection_item = new List<string>();//存放采集项目
+        private IEnumerator ProfileIEnumerator = null;
         public void Init()
         {
             DontDestroyOnLoad(this);
             m_Pro = new MsgProfiler();
-            m_Pro.funMethods.Add("GetVersion",GetSdkVersion);
+            m_Pro.funMethods.Add("GetSdkVersion",GetSdkVersion);
             m_Pro.funMethods.Add("GetUnityVersion", GetUnityVersion);
             m_Pro.funMethods.Add("StopConnection",StopConnection);
             m_Pro.funMethods.Add("Find_Text", FindText);
@@ -511,7 +517,7 @@ namespace Matory
             }
             catch(Exception ex)
             {
-                return ex.Message.ToString();
+                return ex.ToString();
             }
         }
         #endregion
@@ -554,7 +560,16 @@ namespace Matory
         {
             try
             {
-                return GetProfileData();
+                JsonWriter jw = new JsonWriter();
+                jw.WriteObjectStart();
+                if (Collection_item.Contains("profiler_gather"))
+                {
+                    jw.WritePropertyName("profiler_gather");
+                    jw.Write(GetProfileData());
+                }
+                jw.WriteObjectEnd();
+
+                return jw.ToString();
             }
             catch(Exception ex)
             {
@@ -573,6 +588,7 @@ namespace Matory
             profilerDataNames = new List<string>();
             profilerDataPaths = new List<string>();
         }
+
         /// <summary>
         /// 采集UnityProfiler数据
         /// </summary>
@@ -580,71 +596,117 @@ namespace Matory
         /// <returns></returns>
         private object GatherProfiler(string ip, string[] args)
         {
-            string res;
+            Dictionary<string, bool> response = new Dictionary<string, bool> { { "DebugBuild", true }, { "code", true } ,{ "profiler_gather",false } };
+            if (!Debug.isDebugBuild)
+            {
+                Debug.LogError("Current game is not a development build.");
+                response["DebugBuild"] = false;
+                return JsonMapper.ToJson(response);
+            }
+            foreach(string arg in args)
+            {
+                Debug.Log($"MatorySDK Profiler arg: {arg}");
+            }
+
             try
             {
-                bool startArg = args.Length > 1 && (args[1] == "1");
-                res = "ok";
+                string parameter = args[1];
 
-                if (startArg)
+                if(parameter == "1")
                 {
-                    if (!startGatherMsg)
+                    //开始采集
+                    Dictionary<string, string> Dicargs = JsonMapper.ToObject<Dictionary<string, string>>(args[2]);//解析参数案例
+                    Dictionary<string, string> Diccollection = JsonMapper.ToObject<Dictionary<string, string>>(Dicargs["collection"]);
+                    Collection_item = Diccollection.Keys.ToList<string>();
+                    Dictionary<string, string> Dicdata = JsonMapper.ToObject<Dictionary<string, string>>(Dicargs["data"]);
+
+                    //深度profiler采集
+                    if(ProfileIEnumerator == null && Collection_item.Contains("profiler_gather"))
                     {
+                        Profiler_path = Application.persistentDataPath;
+                        if (Dicdata.ContainsKey("path"))
+                        {
+                            if (!string.IsNullOrEmpty(Dicdata["path"]) && Directory.Exists(Dicdata["path"]))
+                            {
+                                Profiler_path = Dicdata["path"];
+                            }
+                        }
                         startGatherMsg = true;
-                        StartGatherProfiler();
-                        res = "start gather profiler.";
+                        ProfileIEnumerator = StartGatherProfiler();
+                        StartCoroutine(ProfileIEnumerator);
+                        response["profiler_gather"] = true;
                     }
                     else
                     {
-                        res = "it's already started.";
+                        if (Collection_item.Contains("profiler_gather"))
+                        {
+                            response["profiler_gather"] = false;
+                        }
                     }
                 }
-                else
+                else if(parameter == "0")
                 {
-                    if (startGatherMsg)
+                    //结束采集
+                    if(ProfileIEnumerator != null && Collection_item.Contains("profiler_gather"))
                     {
-                        if (isGathering)
+                        if (startGatherMsg)
                         {
                             startGatherMsg = false;
                             StopGather();
                         }
-                        res = "stop gather profiler.";
+                        StopCoroutine(ProfileIEnumerator);
+                        ProfileIEnumerator = null;
+                        response["profiler_gather"] = true;
                     }
                     else
-                        res = "it's has been stop.";
-                }
-            }
-            catch (Exception e)
-            {
-                res = e.Message.ToString();
-            }
-            return res;
-        }
-
-        private async UniTaskVoid StartGatherProfiler()
-        {
-            InitProfiler();
-            while (startGatherMsg)
-            {
-                if (isGathering)
-                {
-                    frameNum++;
-                    if (frameNum >= 300)
                     {
-                        StopGather();
-                        fileNum++;
-                        frameNum = 0;
-                        isGathering = false;
+                        if (Collection_item.Contains("profiler_gather"))
+                        {
+                            response["profiler_gather"] = false;
+                        }
                     }
                 }
-                else
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError(ex);
+                response[ex.ToString()] = false;
+                response["code"] = false;
+            }
+            return JsonMapper.ToJson(response);
+        }
+
+        private IEnumerator StartGatherProfiler()
+        {
+            try
+            {
+                InitProfiler();
+                while (startGatherMsg)
                 {
-                    BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
-                    isGathering = true;
-                    frameNum++;
+                    if (isGathering)
+                    {
+                        frameNum++;
+                        if (frameNum >= 300)
+                        {
+                            StopGather();
+                            fileNum++;
+                            frameNum = 0;
+                            isGathering = false;
+                        }
+                    }
+                    else
+                    {
+                        BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
+                        isGathering = true;
+                        frameNum++;
+                    }
                 }
             }
-            await UniTask.Yield();
+            catch(Exception ex)
+            {
+                Debug.LogError(ex.ToString());
+            }
+            yield return null;
         }
 
         private void BeginGather(string fileName)
@@ -805,11 +867,11 @@ namespace Matory
             }
             catch(Exception ex)
             {
-                return ex.Message.ToString();
+                return ex.ToString();
             }
         }
 
-        private async UniTaskVoid ScreenShotTask(string ip)
+        private async Task ScreenShotTask(string ip)
         {
             Texture2D screenshot = UnityEngine.ScreenCapture.CaptureScreenshotAsTexture();
             byte[] bytesPNG = UnityEngine.ImageConversion.EncodeToPNG(screenshot);
@@ -819,7 +881,7 @@ namespace Matory
             sendmsg.Msg = pngAsString;
             SendMsgPool.Enqueue(sendmsg);
             sendCount += 1;
-            await UniTask.Yield();
+            await Task.CompletedTask;
         }
 
         #endregion
@@ -876,7 +938,7 @@ namespace Matory
             }
             catch(Exception ex)
             {
-                return ex.Message.ToString();
+                return ex.ToString();
             }
         }
         #endregion
