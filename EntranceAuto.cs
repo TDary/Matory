@@ -719,11 +719,11 @@ namespace Matory
             //标记data文件最大使用1GB储存空间
             Profiler.maxUsedMemory = 1024 * 1024 * 1024;
 
-            Profiler.logFile = Application.persistentDataPath + "/" + fileName;
+            Profiler.logFile = Profiler_path + "/" + fileName;
             Profiler.enableBinaryLog = true;
             Profiler.enabled = true;
 
-            profilerDataPath = Application.persistentDataPath;
+            profilerDataPath = Profiler_path;
             profilerDataName = fileName;
         }
 
