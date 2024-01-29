@@ -934,38 +934,71 @@ namespace Matory
             string res;
             try
             {
-                if (args[2] == "path")
+                if (args[0] == "leftclick")  //左键单击
                 {
-                    var targetpath = args[1].Replace("//", "/");
-                    targetObj = GameObject.Find(targetpath);
-                    if (targetObj && targetObj.activeInHierarchy)
+                    if (args[2] == "path")
                     {
-                        targetObj.GetComponent<Button>().onClick?.Invoke();
-                        res = "click it success.";
-                    }
-                    else
-                        res = "it is not found.";
-                    throw new Exception(Error.NotFoundMessage);
-                }
-                else if (args[2] == "id")
-                {
-                    int targetid = int.Parse(args[1]);
-                    var targetpth = string.Empty;
-                    targetObj = (GameObject)FindObjectFromInstanceID(targetid);
-                    if (targetObj!=null&& targetObj.activeInHierarchy)
-                    {
-                        targetObj.GetComponent<Button>().onClick?.Invoke();
-                        res = "click it success.";
-                    }
-                    else
-                    {
-                        res = "it is not found.";
+                        var targetpath = args[1].Replace("//", "/");
+                        targetObj = GameObject.Find(targetpath);
+                        if (targetObj && targetObj.activeInHierarchy)
+                        {
+                            targetObj.GetComponent<Button>().onClick?.Invoke();
+                            res = "click it success.";
+                        }
+                        else
+                            res = "it is not found.";
                         throw new Exception(Error.NotFoundMessage);
                     }
+                    else if (args[2] == "id")
+                    {
+                        int targetid = int.Parse(args[1]);
+                        var targetpth = string.Empty;
+                        targetObj = (GameObject)FindObjectFromInstanceID(targetid);
+                        if (targetObj != null && targetObj.activeInHierarchy)
+                        {
+                            targetObj.GetComponent<Button>().onClick?.Invoke();
+                            res = "click it success.";
+                        }
+                        else
+                        {
+                            res = "it is not found.";
+                            throw new Exception(Error.NotFoundMessage);
+                        }
+                    }
+                    else
+                        res = "Tais args is not supported yet.";
+                    return res;
+                }
+                else if (args[0] == "rightclick")   //TODO:右键单击
+                {
+                    res = "Test";
+                    return res;
+                }
+                else if (args[0] == "leftdown")   //TODO:左键按下
+                {
+                    res = "Test";
+                    return res;
+                }
+                else if(args[0] == "rightdown")   //TODO:右键按下
+                {
+                    res = "Test";
+                    return res;
+                }
+                else if (args[0] == "leftlift")    //TODO:左键抬起
+                {
+                    res = "Test";
+                    return res;
+                }
+                else if (args[0] == "rightlift")  //TODO:右键抬起
+                {
+                    res = "Test";
+                    return res;
                 }
                 else
-                    res = "Tais args is not supported yet.";
-                return res;
+                {
+                    res = "Test";
+                    return res;
+                }
             }
             catch(Exception ex)
             {
