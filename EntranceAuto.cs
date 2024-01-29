@@ -33,7 +33,6 @@ namespace Matory
         private string profilerDataName = "";
         private string profilerDataPath = "";
         private GameObject targetObj;
-        private Dictionary<int, string> idPool = new Dictionary<int, string>(500);
         private ConcurrentQueue<MsgForSend> SendMsgPool = new ConcurrentQueue<MsgForSend>();
         private ConcurrentQueue<TransData> GetMsgPool = new ConcurrentQueue<TransData>();
         private Dictionary<string,TransData> GetTransDataPool = new Dictionary<string,TransData>(20);
@@ -230,6 +229,13 @@ namespace Matory
                 socketServer.stop();
             }
             return null;
+        }
+
+        public static UnityEngine.Object FindObjectFromInstanceID(int iid)
+        {
+            return (UnityEngine.Object)typeof(UnityEngine.Object)
+                    .GetMethod("FindObjectFromInstanceID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                    .Invoke(null, new object[] { iid });
         }
 
         #region 获取Unity面板数据
@@ -752,18 +758,31 @@ namespace Matory
             Canvas[] allcanvas = FindObjectsOfType<Canvas>();
             foreach(var can in allcanvas)
             {
-                Button btn = GetChildButton(can.transform);
-                if(btn != null)
+                var allBtnInCanva = can.GetComponentsInChildren<Button>();
+                foreach (var button in allBtnInCanva)
                 {
                     jw.WriteObjectStart();
-                    jw.WritePropertyName("id");//写入属性名称（"id"）
-                    jw.Write(btn.gameObject.GetInstanceID());
 
-                    jw.WritePropertyName("path");
-                    jw.Write(GetHierarchyPath(btn.transform));
+                    jw.WritePropertyName("InstanceId");
+                    jw.Write(button.gameObject.GetInstanceID());
+                    jw.WritePropertyName("ButtonName");
+                    var textobj = button.gameObject.GetComponentInChildren<Text>();
+                    if (textobj == null)
+                    {
+                        var textmeshInput = button.gameObject.GetComponentInChildren<InputField>(); //寻找是否有InputField组件
+                        if (textmeshInput != null)
+                            jw.Write(textmeshInput.text);
+                        else
+                            jw.Write("");
+                    }
+                    else
+                        jw.Write(textobj.text);
+                    jw.WritePropertyName("BtnPath");
+                    string btnPath = GetHierarchyPath(button.transform);
+                    jw.Write(btnPath);
                     jw.WriteObjectEnd();
                 }
-            }
+             }
             jw.WriteArrayEnd();
             return jw.ToString();
         }
@@ -815,6 +834,8 @@ namespace Matory
                 //寻找是否有Text组件
                 Text text = child.GetComponent<Text>();
                 if (text != null && text.text == currentText)
+                    return text;
+                else if (text != null && text.text.Contains(currentText))
                     return text;
 
                 //寻找是否有InputField组件
@@ -903,7 +924,6 @@ namespace Matory
                     targetObj = GameObject.Find(targetpath);
                     if (targetObj && targetObj.activeInHierarchy)
                     {
-                        idPool.Add(targetObj.GetInstanceID(), targetpath);
                         targetObj.GetComponent<Button>().onClick?.Invoke();
                         res = "click it success.";
                     }
@@ -915,16 +935,11 @@ namespace Matory
                 {
                     int targetid = int.Parse(args[1]);
                     var targetpth = string.Empty;
-                    if (idPool.TryGetValue(targetid, out targetpth))
+                    targetObj = (GameObject)FindObjectFromInstanceID(targetid);
+                    if (targetObj!=null&& targetObj.activeInHierarchy)
                     {
-                        targetObj = GameObject.Find(targetpth);
-                        if (targetObj.activeInHierarchy)
-                        {
-                            targetObj.GetComponent<Button>().onClick?.Invoke();
-                            res = "click it success.";
-                        }
-                        else
-                            res = "it has not active yet.";
+                        targetObj.GetComponent<Button>().onClick?.Invoke();
+                        res = "click it success.";
                     }
                     else
                     {
