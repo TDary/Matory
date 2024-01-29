@@ -762,7 +762,6 @@ namespace Matory
                 foreach (var button in allBtnInCanva)
                 {
                     jw.WriteObjectStart();
-
                     jw.WritePropertyName("InstanceId");
                     jw.Write(button.gameObject.GetInstanceID());
                     jw.WritePropertyName("ButtonName");
@@ -790,27 +789,44 @@ namespace Matory
         //获取UI上的文本对象
         private object FindText(string ip, string[] args)
         {
-            List<string> allres = new List<string>();
+            JsonWriter jw = new JsonWriter();
+            jw.WriteArrayStart();
             Canvas[] allcanva = FindObjectsOfType<Canvas>();
             foreach (var item in allcanva)
             {
-                Text result = GetChildText(item.transform, args[1]);
-                if (result != null)
+                if(args.Length!=0 && args[0] != "")
                 {
-                    string currentUIPath = GetHierarchyPath(result.transform);
-                    allres.Add(currentUIPath);
+                    var allText = item.GetComponentsInChildren<Text>();
+                    foreach (var text in allText)
+                    {
+                        if (text != null && text.text.Contains(args[0]))
+                        {
+                            jw.WriteObjectStart();
+                            jw.WritePropertyName("TextUIPath");
+                            string currentUIPath = GetHierarchyPath(text.transform);
+                            jw.Write(currentUIPath);
+                            jw.WritePropertyName("InstanceId");
+                            jw.Write(text.GetInstanceID());
+                            jw.WriteObjectEnd();
+                        }
+                    }
+                    var allInputText = item.GetComponentsInChildren<InputField>();
+                    foreach (var inputField in allInputText)
+                    {
+                        if (inputField != null && inputField.text.Contains(args[0]))
+                        {
+                            jw.WriteObjectStart();
+                            jw.WritePropertyName("TextInputUIPath");
+                            string currentUIPath = GetHierarchyPath(inputField.transform);
+                            jw.Write(currentUIPath);
+                            jw.WritePropertyName("InstanceId");
+                            jw.Write(inputField.GetInstanceID());
+                            jw.WriteObjectEnd();
+                        }
+                    }
                 }
             }
-            JsonWriter jw = new JsonWriter();
-            jw.WriteObjectStart();
-            jw.WritePropertyName("allpath");
-            jw.WriteArrayStart();
-            foreach(var item in allres)
-            {
-                jw.Write(item);
-            }
             jw.WriteArrayEnd();
-            jw.WriteObjectEnd();
             return jw.ToString();
         }
 
@@ -827,27 +843,27 @@ namespace Matory
             }
         }
 
-        private Text GetChildText(Transform parent, string currentText)
-        {
-            foreach (Transform child in parent)
-            {
-                //寻找是否有Text组件
-                Text text = child.GetComponent<Text>();
-                if (text != null && text.text == currentText)
-                    return text;
-                else if (text != null && text.text.Contains(currentText))
-                    return text;
+        //private Text GetChildText(Transform parent, string currentText)
+        //{
+        //    foreach (Transform child in parent)
+        //    {
+        //        //寻找是否有Text组件
+        //        Text text = child.GetComponent<Text>();
+        //        if (text != null && text.text == currentText)
+        //            return text;
+        //        else if (text != null && text.text.Contains(currentText))
+        //            return text;
 
-                //寻找是否有InputField组件
-                InputField inputText = child.GetComponent<InputField>();
-                if (inputText != null && inputText.text == currentText)
-                    return text;
+        //        //寻找是否有InputField组件
+        //        InputField inputText = child.GetComponent<InputField>();
+        //        if (inputText != null && inputText.text == currentText)
+        //            return inputText;
                 
-                //递归遍历一下子对象
-                GetChildText(child, currentText);
-            }
-            return null;
-        }
+        //        //递归遍历一下子对象
+        //        GetChildText(child, currentText);
+        //    }
+        //    return null;
+        //}
 
         private Button GetChildButton(Transform parent)
         {
