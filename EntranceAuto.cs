@@ -1317,6 +1317,14 @@ namespace Matory
                 Debug.LogException(e);
             }
         }
+
+        ///// <summary>
+        ///// 模拟鼠标滚轮模块
+        ///// </summary>
+        //private void MouseWheel()
+        //{
+
+        //}
         #endregion
     }
 
