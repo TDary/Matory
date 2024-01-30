@@ -689,35 +689,28 @@ namespace Matory
 
         private IEnumerator StartGatherProfiler()
         {
-            try
+            InitProfiler();
+            while (startGatherMsg)
             {
-                InitProfiler();
-                //while (startGatherMsg)
-                //{
-                //    if (isGathering)
-                //    {
-                //        frameNum++;
-                //        if (frameNum >= 300)
-                //        {
-                //            EndGather();
-                //            fileNum++;
-                //            frameNum = 0;
-                //            isGathering = false;
-                //        }
-                //    }
-                //    else
-                //    {
-                //        BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
-                //        isGathering = true;
-                //        frameNum++;
-                //    }
-                //}
+                if (isGathering)
+                {
+                    frameNum++;
+                    if (frameNum >= 300)
+                    {
+                        EndGather();
+                        fileNum++;
+                        frameNum = 0;
+                        isGathering = false;
+                    }
+                }
+                else
+                {
+                    BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
+                    isGathering = true;
+                    frameNum++;
+                }
+                yield return null;
             }
-            catch(Exception ex)
-            {
-                Debug.LogError(ex.ToString());
-            }
-            yield return null;
         }
 
         private void BeginGather(string fileName)
