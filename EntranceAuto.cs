@@ -640,6 +640,9 @@ namespace Matory
                             if (!string.IsNullOrEmpty(Dicdata["path"]) && Directory.Exists(Dicdata["path"]))
                             {
                                 Profiler_path = Dicdata["path"];
+                                //判断下文件夹是否存在，不存在就创建一下
+                                if(!Directory.Exists(Profiler_path))    
+                                    Directory.CreateDirectory(Profiler_path);
                             }
                         }
                         startGatherMsg = true;
@@ -720,8 +723,8 @@ namespace Matory
             Profiler.SetAreaEnabled(ProfilerArea.Memory, true);
             Profiler.SetAreaEnabled(ProfilerArea.Physics, true);
             Profiler.SetAreaEnabled(ProfilerArea.UI, true);
-            //标记data文件最大使用1GB储存空间
-            Profiler.maxUsedMemory = 1024 * 1024;
+            //标记data文件最大使用1GB储存空间,在磁盘存储空间比较紧张的情况下用
+            //Profiler.maxUsedMemory = 1024 * 1024 *1024;
 
             Profiler.logFile = Profiler_path + "/" + fileName;
             Profiler.enableBinaryLog = true;
