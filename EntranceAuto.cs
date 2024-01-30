@@ -58,6 +58,8 @@ namespace Matory
             m_Pro.funMethods.Add("GetScreenShot",GetScreenShot);
             m_Pro.funMethods.Add("Object_Exist",IsObjectExist);
             m_Pro.funMethods.Add("ClickOneBySimulate", ClickOneSimulateMouse);
+            m_Pro.funMethods.Add("PressOneBySimulate", PressOneSimulateMouse);
+            m_Pro.funMethods.Add("UpOneBySimulate", UpOneSimulateMouse);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -1053,57 +1055,6 @@ namespace Matory
                         res = "Tais args is not supported yet.";
                     return res;
                 }
-                //else if (args[0] == "rightclick")   //右键单击  这里借助鼠标模拟进行点击操作
-                //{
-                //    if (args[2] == "id")
-                //    {
-                //        if (int.TryParse(args[1],out int targetid))
-                //        {
-                //            targetObj = (GameObject)FindObjectFromInstanceID(targetid);
-                //            if (targetObj != null && targetObj.activeInHierarchy)
-                //            {
-
-                //                res = "click it success.";
-                //                return res;
-                //            }
-                //            else
-                //            {
-                //                res = "This object is null.";
-                //                return res;
-                //            }
-                //        }
-                //        else
-                //        {
-                //            res = "Current idvalue is not int type";
-                //            return res;
-                //        }
-                //    }
-                //    else
-                //    {
-                //        res = "This method is not supported now.";
-                //        return res;
-                //    }
-                //}
-                //else if (args[0] == "leftdown")   //TODO:左键按下
-                //{
-                //    res = "Test";
-                //    return res;
-                //}
-                //else if(args[0] == "rightdown")   //TODO:右键按下
-                //{
-                //    res = "Test";
-                //    return res;
-                //}
-                //else if (args[0] == "leftlift")    //TODO:左键抬起
-                //{
-                //    res = "Test";
-                //    return res;
-                //}
-                //else if (args[0] == "rightlift")  //TODO:右键抬起
-                //{
-                //    res = "Test";
-                //    return res;
-                //}
                 else
                 {
                     res = "Test";
@@ -1175,6 +1126,166 @@ namespace Matory
             return res;
         }
 
+
+        /// <summary>
+        /// 模拟鼠标按下调用函数入口
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object PressOneSimulateMouse(string ip, string[] args)
+        {
+            string res;
+            if (args.Length >= 2)
+            {
+                if (args[0] != "")
+                {
+                    if (int.TryParse(args[1], out int targetid))
+                    {
+                        targetObj = (GameObject)FindObjectFromInstanceID(targetid);
+                        if (targetObj != null && targetObj.activeInHierarchy)
+                        {
+                            var btnObj = targetObj.GetComponent<Button>();
+                            if (btnObj != null)
+                            {
+                                switch (args[0])
+                                {
+                                    case "left":
+                                        SimulateMousePressModule(btnObj.gameObject, UnityEngine.EventSystems.PointerEventData.InputButton.Left);
+                                        res = "Press it success";
+                                        break;
+                                    case "right":
+                                        SimulateMousePressModule(btnObj.gameObject, UnityEngine.EventSystems.PointerEventData.InputButton.Right);
+                                        res = "Press it success";
+                                        break;
+                                    case "middle":
+                                        SimulateMousePressModule(btnObj.gameObject, UnityEngine.EventSystems.PointerEventData.InputButton.Middle);
+                                        res = "Press it success";
+                                        break;
+                                    default:
+                                        res = "this value is not supported.";
+                                        break;
+                                }
+                            }
+                            else
+                                res = "This Object has not a button component.";
+                        }
+                        else
+                            res = "This Object is not exist.";
+                    }
+                    else
+                        res = "This value is not int type.";
+                }
+                else
+                    res = "This args[0] is empty.";
+            }
+            else
+            {
+                res = "This args has not enough value.";
+            }
+            return res;
+        }
+
+        /// <summary>
+        /// 模拟鼠标抬起调用函数入口
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object UpOneSimulateMouse(string ip, string[] args)
+        {
+            string res;
+            if (args.Length >= 2)
+            {
+                if (args[0] != "")
+                {
+                    if (int.TryParse(args[1], out int targetid))
+                    {
+                        targetObj = (GameObject)FindObjectFromInstanceID(targetid);
+                        if (targetObj != null && targetObj.activeInHierarchy)
+                        {
+                            var btnObj = targetObj.GetComponent<Button>();
+                            if (btnObj != null)
+                            {
+                                switch (args[0])
+                                {
+                                    case "left":
+                                        SimulateMouseUpModule(btnObj.gameObject, UnityEngine.EventSystems.PointerEventData.InputButton.Left);
+                                        res = "Up it success";
+                                        break;
+                                    case "right":
+                                        SimulateMouseUpModule(btnObj.gameObject, UnityEngine.EventSystems.PointerEventData.InputButton.Right);
+                                        res = "Up it success";
+                                        break;
+                                    case "middle":
+                                        SimulateMouseUpModule(btnObj.gameObject, UnityEngine.EventSystems.PointerEventData.InputButton.Middle);
+                                        res = "Up it success";
+                                        break;
+                                    default:
+                                        res = "this value is not supported.";
+                                        break;
+                                }
+                            }
+                            else
+                                res = "This Object has not a button component.";
+                        }
+                        else
+                            res = "This Object is not exist.";
+                    }
+                    else
+                        res = "This value is not int type.";
+                }
+                else
+                    res = "This args[0] is empty.";
+            }
+            else
+            {
+                res = "This args has not enough value.";
+            }
+            return res;
+        }
+
+        /// <summary>
+        /// 模拟鼠标操作按下模块
+        /// </summary>
+        /// <param name="objBtn">组件对象</param>
+        /// <param name="btntype">左右中鼠标键</param>
+        private void SimulateMousePressModule(GameObject objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btntype)
+        {
+            var pointerEventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
+            pointerEventData.button = btntype;
+            UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerEnterHandler);
+            objBtn.SendMessage("OnMouseEnter", UnityEngine.SendMessageOptions.DontRequireReceiver);
+            UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler);
+            objBtn.SendMessage("OnMouseDown", UnityEngine.SendMessageOptions.DontRequireReceiver);
+        }
+
+        /// <summary>
+        /// 模拟鼠标操作抬起模块
+        /// </summary>
+        /// <param name="objBtn"></param>
+        /// <param name="btntype"></param>
+        private void SimulateMouseUpModule(GameObject objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btntype)
+        {
+            var pointerEventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
+            pointerEventData.button = btntype;
+            UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.initializePotentialDrag);
+            objBtn.SendMessage("OnMouseOver", UnityEngine.SendMessageOptions.DontRequireReceiver);
+            UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerUpHandler);
+            objBtn.SendMessage("OnMouseUp", UnityEngine.SendMessageOptions.DontRequireReceiver);
+            try
+            {
+                //避免点击后删除空间出现错误
+                UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerClickHandler);
+                objBtn.SendMessage("OnMouseUpAsButton", UnityEngine.SendMessageOptions.DontRequireReceiver);
+                UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerExitHandler);
+                objBtn.SendMessage("OnMouseExit", UnityEngine.SendMessageOptions.DontRequireReceiver);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+        }
 
         /// <summary>
         /// 模拟鼠标操作单击模块
