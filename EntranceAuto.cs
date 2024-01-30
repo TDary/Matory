@@ -613,6 +613,7 @@ namespace Matory
                 response["DebugBuild"] = false;
                 return JsonMapper.ToJson(response);
             }
+
             foreach(string arg in args)
             {
                 Debug.Log($"MatorySDK Profiler arg: {arg}");
@@ -662,7 +663,7 @@ namespace Matory
                         if (startGatherMsg)
                         {
                             startGatherMsg = false;
-                            StopGather();
+                            EndGather();
                         }
                         StopCoroutine(ProfileIEnumerator);
                         ProfileIEnumerator = null;
@@ -691,26 +692,26 @@ namespace Matory
             try
             {
                 InitProfiler();
-                while (startGatherMsg)
-                {
-                    if (isGathering)
-                    {
-                        frameNum++;
-                        if (frameNum >= 300)
-                        {
-                            StopGather();
-                            fileNum++;
-                            frameNum = 0;
-                            isGathering = false;
-                        }
-                    }
-                    else
-                    {
-                        BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
-                        isGathering = true;
-                        frameNum++;
-                    }
-                }
+                //while (startGatherMsg)
+                //{
+                //    if (isGathering)
+                //    {
+                //        frameNum++;
+                //        if (frameNum >= 300)
+                //        {
+                //            EndGather();
+                //            fileNum++;
+                //            frameNum = 0;
+                //            isGathering = false;
+                //        }
+                //    }
+                //    else
+                //    {
+                //        BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
+                //        isGathering = true;
+                //        frameNum++;
+                //    }
+                //}
             }
             catch(Exception ex)
             {
@@ -727,7 +728,7 @@ namespace Matory
             Profiler.SetAreaEnabled(ProfilerArea.Physics, true);
             Profiler.SetAreaEnabled(ProfilerArea.UI, true);
             //标记data文件最大使用1GB储存空间
-            Profiler.maxUsedMemory = 1024 * 1024 * 1024;
+            Profiler.maxUsedMemory = 1024 * 1024;
 
             Profiler.logFile = Profiler_path + "/" + fileName;
             Profiler.enableBinaryLog = true;
@@ -737,7 +738,7 @@ namespace Matory
             profilerDataName = fileName;
         }
 
-        private void StopGather()
+        private void EndGather()
         {
             Profiler.enabled = false;
             Profiler.logFile = "";
