@@ -56,6 +56,7 @@ namespace Matory
             m_Pro.funMethods.Add("Get_Inspector",GetInspector);
             m_Pro.funMethods.Add("ClickOne", ClickOneButton);
             m_Pro.funMethods.Add("GetScreenShot",GetScreenShot);
+            m_Pro.funMethods.Add("Object_Exist",IsObjectExist);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -841,6 +842,82 @@ namespace Matory
             {
                 return GetHierarchyPath(transform.parent) + "/" + transform.name;
             }
+        }
+
+        /// <summary>
+        /// 判断当前对象是否存在
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args">"id"/"path" value</param>
+        /// <returns></returns>
+        private object IsObjectExist(string ip, string[] args)
+        {
+            bool res;
+            string resMsg;
+            if (args.Length >= 2)
+            {
+                if (args[0].Equals("id"))
+                {
+                    if (int.TryParse(args[1], out int insid))
+                    {
+                        if (FindObjectFromInstanceID(insid) != null)
+                        {
+                            res = true;
+                            resMsg = "This object is exist.";
+                        }
+                        else
+                        {
+                            res = false;
+                            resMsg = "This object is not exist.";
+                        }
+                    }
+                    else
+                    {
+                        res = false;
+                        resMsg = "This id is not int type";
+                    }
+                }
+                else if (args[0].Equals("path"))
+                {
+                    if (args[1] != "")
+                    {
+                        targetObj = GameObject.Find(args[1]);
+                        if(targetObj != null)
+                        {
+                            res = true;
+                            resMsg = "This object is exist.";
+                        }
+                        else
+                        {
+                            res = false;
+                            resMsg = "This object is not exist.";
+                        }
+                    }
+                    else
+                    {
+                        res = false;
+                        resMsg = "This path value is empty.";
+                    }
+                }
+                else
+                {
+                    res = false;
+                    resMsg = "This markMethod is not exist.";
+                }
+            }
+            else
+            {
+                res = false;
+                resMsg = "Current args is not enough.";
+            }
+            JsonWriter jw = new JsonWriter();
+            jw.WriteObjectStart();
+            jw.WritePropertyName("ObjectExistState");
+            jw.Write(res);
+            jw.WritePropertyName("RetrunMsg");
+            jw.Write(resMsg);
+            jw.WriteObjectEnd();
+            return jw.ToString();
         }
 
         //private Text GetChildText(Transform parent, string currentText)
