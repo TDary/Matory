@@ -1134,7 +1134,7 @@ namespace Matory
                         targetObj = (GameObject)FindObjectFromInstanceID(targetid);
                         if (targetObj != null && targetObj.activeInHierarchy)
                         {
-                            var btnObj = GetComponent<Button>();
+                            var btnObj = targetObj.GetComponent<Button>();
                             if (btnObj != null)
                             {
                                 switch (args[0])
@@ -1157,7 +1157,7 @@ namespace Matory
                                 }
                             }
                             else
-                                res = "This Object has not button component.";
+                                res = "This Object has not a button component.";
                         }
                         else
                             res = "This Object is not exist.";
