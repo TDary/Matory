@@ -46,7 +46,7 @@ namespace Matory
             DontDestroyOnLoad(this);
             m_Pro = new MsgProfiler();
             m_Pro.funMethods.Add("GetSdkVersion",GetSdkVersion);
-            m_Pro.funMethods.Add("GetUnityVersion", GetUnityVersion);
+            m_Pro.funMethods.Add("GetGameVersion", GetGameEngineVersion);
             m_Pro.funMethods.Add("StopConnection",StopConnection);
             m_Pro.funMethods.Add("Find_Text", FindText);
             m_Pro.funMethods.Add("Find_AllButton", FindAllButton);
@@ -518,8 +518,8 @@ namespace Matory
         #endregion
 
 
-        #region 获取Unity版本
-        private object GetUnityVersion(string ip,string[] args)
+        #region 获取游戏引擎版本
+        private object GetGameEngineVersion(string ip,string[] args)
         {
             try
             {
