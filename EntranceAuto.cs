@@ -41,6 +41,7 @@ namespace Matory
         private string Profiler_path;
         private List<string> Collection_item = new List<string>();//存放采集项目
         private IEnumerator ProfileIEnumerator = null;
+        private string SnapShotFilePath = string.Empty;
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -60,6 +61,7 @@ namespace Matory
             m_Pro.funMethods.Add("ClickOneBySimulate", ClickOneSimulateMouse);
             m_Pro.funMethods.Add("PressOneBySimulate", PressOneSimulateMouse);
             m_Pro.funMethods.Add("UpOneBySimulate", UpOneSimulateMouse);
+            m_Pro.funMethods.Add("CaptureMemorySnap",TakeMemorySnapShot);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -170,6 +172,31 @@ namespace Matory
                         }
                         sendCount--;
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 发送消息给上层客户端逻辑
+        /// </summary>
+        /// <param name="msg"></param>
+        private void SendMsg(string msg)
+        {
+            foreach (var session in socketServer.SessionPool.Values)
+            {
+                if (session.IP != "")
+                {
+                    JsonWriter jw = new JsonWriter();
+                    jw.WriteObjectStart();
+                    jw.WritePropertyName("Code");
+                    jw.Write(200);
+                    jw.WritePropertyName("Msg");
+                    jw.Write(true);
+                    jw.WritePropertyName("Data");
+                    jw.Write(msg);
+                    jw.WriteObjectEnd();
+                    byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                    session.SockeClient.Send(msgBuffer);
                 }
             }
         }
@@ -1322,6 +1349,170 @@ namespace Matory
         //{
 
         //}
+        #endregion
+
+        #region 截取内存快照逻辑
+
+        /// <summary>
+        /// 内存快照回调函数
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="bl"></param>
+        private void MemorySnapShotCallBack(string str,bool bl)
+        {
+            if (bl)
+            {
+                //截图然后发送成功截取快照的消息
+                ScreenCapture.CaptureScreenshot(SnapShotFilePath.Replace("snap","png"));
+                SendMsg("截取一次内存快照完成——");
+            }
+            else
+            {
+                Debug.LogError("截取一次内存快照失败——" + str);
+                SendMsg("截取一次内存快照失败——"+str);
+            }
+        }
+
+        /// <summary>
+        /// 内存快照截取
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args">args[0]为type值 args[1]为文件path</param>
+        private object TakeMemorySnapShot(string ip, string[] args)
+        {
+            Dictionary<string, bool> response = new Dictionary<string, bool> { { "DebugBuild", true }, { "Code", true }, { "SendMsg", false }};
+
+            if (!Debug.isDebugBuild)
+            {
+                Debug.LogError("Current game is not a development build.");
+                response["DebugBuild"] = false;
+                return JsonMapper.ToJson(response);
+            }
+
+            foreach (string arg in args)
+            {
+                Debug.Log($"MatorySDK Profiler arg: {arg}");
+            }
+
+            if (args[0] != "" && args[1]!="")
+            {
+                string dir = Path.GetDirectoryName(args[1]);
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                SnapShotFilePath = args[1];
+                if (!args[1].Contains(".snap"))
+                {
+                    response["The args is not contains snap"] = false;
+                    response["Code"] = false;
+                    return JsonMapper.ToJson(response);
+                }
+                switch (args[0])
+                {
+#if UNITY_2022_3_OR_NEWER
+                    case "All":
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, 
+                            Unity.Profiling.Memory.CaptureFlags.ManagedObjects | Unity.Profiling.Memory.CaptureFlags.NativeObjects | 
+                            Unity.Profiling.Memory.CaptureFlags.NativeAllocations | Unity.Profiling.Memory.CaptureFlags.NativeAllocationSites | 
+                            Unity.Profiling.Memory.CaptureFlags.NativeStackTraces);
+                        response["SendMsg"] = true;
+                        break;
+                    case "ManagedObjects":
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, Unity.Profiling.Memory.CaptureFlags.ManagedObjects);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeObjects":
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, Unity.Profiling.Memory.CaptureFlags.NativeObjects);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeAllocations":
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, Unity.Profiling.Memory.CaptureFlags.NativeAllocations);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeAllocationSites":
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, Unity.Profiling.Memory.CaptureFlags.NativeAllocationSites);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeStackTraces":
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, Unity.Profiling.Memory.CaptureFlags.NativeStackTraces);
+                        response["SendMsg"] = true;
+                        break;
+                    default:
+                        response["The typemark is not supported."] = false;
+                        break;
+#elif UNITY_2021_1_OR_NEWER
+                    case "All":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, 
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects | 
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites | 
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
+                        response["SendMsg"] = true;
+                        break;
+                    case "ManagedObjects":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeObjects":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeAllocations":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeAllocationSites":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeStackTraces":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
+                        response["SendMsg"] = true;
+                        break;
+                    default:
+                        response["The typemark is not supported."] = false;
+                        break;
+#else
+                    case "All":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, 
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects | 
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites | 
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
+                        response["SendMsg"] = true;
+                        break;
+                    case "ManagedObjects":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeObjects":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeAllocations":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeAllocationSites":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites);
+                        response["SendMsg"] = true;
+                        break;
+                    case "NativeStackTraces":
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
+                        response["SendMsg"] = true;
+                        break;
+                    default:
+                        response["The typemark is not supported."] = false;
+                        break;
+#endif
+                }
+                return JsonMapper.ToJson(response);
+            }
+            else
+            {
+                response["code"] = false;
+                response["sendmsg"] = false;
+                response["args is empty"] = false;
+                return JsonMapper.ToJson(response);
+            }
+        }
         #endregion
     }
 
