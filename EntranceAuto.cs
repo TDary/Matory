@@ -1003,7 +1003,12 @@ namespace Matory
         {
             try
             {
-                ScreenShotTask(ip);
+                string capturefilePath = string.Empty;
+                if (args.Length != 0 && args[0] != "")
+                    capturefilePath = args[0];
+                else
+                    throw new Exception("The args is null or not exist.");
+                _ = ScreenShotTask(ip, capturefilePath);
                 return "ok";
             }
             catch(Exception ex)
@@ -1012,14 +1017,12 @@ namespace Matory
             }
         }
 
-        private async Task ScreenShotTask(string ip)
+        private async Task ScreenShotTask(string ip,string filepath)
         {
-            Texture2D screenshot = UnityEngine.ScreenCapture.CaptureScreenshotAsTexture();
-            byte[] bytesPNG = UnityEngine.ImageConversion.EncodeToPNG(screenshot);
-            string pngAsString = Convert.ToBase64String(bytesPNG);
+            ScreenCapture.CaptureScreenshot(filepath);
             MsgForSend sendmsg = new MsgForSend();
             sendmsg.Ip = ip;
-            sendmsg.Msg = pngAsString;
+            sendmsg.Msg = $"{filepath}+截取完成";
             SendMsgPool.Enqueue(sendmsg);
             sendCount += 1;
             await Task.CompletedTask;
