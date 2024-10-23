@@ -27,6 +27,7 @@ namespace Matory
         private bool isGathering = false;
         private MsgProfiler m_Pro;
         private int frameNum = 0;
+        private int ProfilerBeginFrame = 0;
         private int fileNum = 0;
         private List<string> profilerDataNames;
         private List<string> profilerDataPaths;
@@ -745,6 +746,7 @@ namespace Matory
 
         private void BeginGather(string fileName)
         {
+            ProfilerBeginFrame = Time.frameCount;
             Profiler.SetAreaEnabled(ProfilerArea.CPU, true);
             Profiler.SetAreaEnabled(ProfilerArea.Rendering, true);
             Profiler.SetAreaEnabled(ProfilerArea.Memory, true);
