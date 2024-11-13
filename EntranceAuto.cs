@@ -25,7 +25,7 @@ namespace Matory
         private int port = 2666;
         private bool startGatherMsg = false;
         private bool isGathering = false;
-        private MsgProfiler m_Pro;
+        public MsgProfiler m_Pro;
         private int frameNum = 0;
         private int ProfilerBeginFrame = 0;
         private int fileNum = 0;
