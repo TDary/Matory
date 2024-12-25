@@ -41,7 +41,7 @@ namespace Matory
         private int sendCount = 0;
         private string Profiler_path;
         private List<string> Collection_item = new List<string>();//存放采集项目
-        private IEnumerator ProfileIEnumerator = null;
+        private Coroutine ProfileIEnumerator = null;
         private string SnapShotFilePath = string.Empty;
         public void Init()
         {
@@ -674,8 +674,7 @@ namespace Matory
                             }
                         }
                         startGatherMsg = true;
-                        ProfileIEnumerator = StartGatherProfiler();
-                        StartCoroutine(ProfileIEnumerator);
+                        ProfileIEnumerator = StartCoroutine(StartGatherProfiler());
                         response["profiler_gather"] = true;
                     }
                     else
@@ -697,7 +696,6 @@ namespace Matory
                             EndGather();
                         }
                         StopCoroutine(ProfileIEnumerator);
-                        ProfileIEnumerator = null;
                         response["profiler_gather"] = true;
                     }
                     else
