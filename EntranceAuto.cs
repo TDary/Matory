@@ -63,6 +63,8 @@ namespace Matory
             m_Pro.funMethods.Add("PressOneBySimulate", PressOneSimulateMouse);
             m_Pro.funMethods.Add("UpOneBySimulate", UpOneSimulateMouse);
             m_Pro.funMethods.Add("CaptureMemorySnap",TakeMemorySnapShot);
+            m_Pro.funMethods.Add("SetCamera", SetCameraPosition);
+            m_Pro.funMethods.Add("SetGameObjectState", GameObjectSwitch);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -625,6 +627,45 @@ namespace Matory
 
             profilerDataNames = new List<string>();
             profilerDataPaths = new List<string>();
+        }
+
+        /// <summary>
+        /// 设置相机位置
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object SetCameraPosition(string ip, string[] args)
+        {
+            var position = args[0];
+            var rotation = args[1];
+            float position_x = Convert.ToSingle(position[0]);
+            float position_y = Convert.ToSingle(position[1]);
+            float position_z = Convert.ToSingle(position[2]);
+            float rotate_x = Convert.ToSingle(rotation[0]);
+            float rotate_y = Convert.ToSingle(rotation[1]);
+            float rotate_z = Convert.ToSingle(rotation[2]);
+            Vector3 changePosition = new Vector3(position_x, position_y, position_z);
+            Camera.main.transform.position = changePosition;
+            Camera.main.transform.rotation = Quaternion.Euler(rotate_x, rotate_y, rotate_z);
+            return "ok";
+        }
+
+        /// <summary>
+        /// 对象设置 激活和失活用的
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object GameObjectSwitch(string ip, string[] args)
+        {
+            var go = GameObject.Find(args[0]);
+            if(bool.TryParse(args[1],out bool val))
+            {
+                if (go != null)
+                    go.SetActive(val);
+            }
+            return "ok";
         }
 
         /// <summary>
