@@ -1533,9 +1533,9 @@ namespace Matory
                         break;
 #elif UNITY_2021_1_OR_NEWER
                     case "All":
-                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, 
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects | 
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites | 
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack,
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
                         response["SendMsg"] = true;
                         break;
