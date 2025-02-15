@@ -78,6 +78,7 @@ namespace Matory.HotMapSampler
             perfData.StopRecordData();
             sw.Close();
             sw = null;
+            isRunning = false;
             return "Sample stop successful.";
         }
 

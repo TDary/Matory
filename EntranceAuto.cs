@@ -143,7 +143,7 @@ namespace Matory
                                                 jw.WritePropertyName("Msg");
                                                 jw.Write(true);
                                                 jw.WritePropertyName("Data");
-                                                jw.Write("This Function is not found.");
+                                                jw.Write(result.ToString());
                                                 jw.WriteObjectEnd();
                                                 byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
                                                 session.SockeClient.Send(msgBuffer);
@@ -1564,9 +1564,9 @@ namespace Matory
                         break;
 #else
                     case "All":
-                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack, 
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects | 
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites | 
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(args[1], MemorySnapShotCallBack,
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
                         response["SendMsg"] = true;
                         break;
