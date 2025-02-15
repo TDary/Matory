@@ -68,7 +68,7 @@ namespace Matory
             m_Pro.funMethods.Add("SetCamera", SetCameraPosition);
             m_Pro.funMethods.Add("SetGameObjectState", GameObjectSwitch);
             m_Pro.funMethods.Add("PerformanceData_Start",SampleDataStart);
-            m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStart);
+            m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStop);
             m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
             for (int i = 0; i < 5; i++)
             {
