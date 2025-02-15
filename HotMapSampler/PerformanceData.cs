@@ -81,22 +81,22 @@ namespace Matory.HotMapSampler
             trianglesRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Triangles Count");
             totalAllocatedMemoryRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "Total Used Memory");
 #endif
-            if (_cacheSamplers.Count != 0)
-            {
-                foreach (var sample in _cacheSamplers)
-                {
-                    sample.GetRecorder().enabled = true;
-                }
-            }
-            else
-            {
-                var hdRenderCamera = CustomSampler.Get("HDRenderPipeline::Render Main Camera");
-                if (hdRenderCamera != null && hdRenderCamera.GetRecorder().isValid)
-                {
-                    hdRenderCamera.GetRecorder().enabled = true;
-                    _cacheSamplers.Add(hdRenderCamera);
-                }
-            }
+            //if (_cacheSamplers.Count != 0)
+            //{
+            //    foreach (var sample in _cacheSamplers)
+            //    {
+            //        sample.GetRecorder().enabled = true;
+            //    }
+            //}
+            //else
+            //{
+            //    var hdRenderCamera = CustomSampler.Get("HDRenderPipeline::Render Main Camera");
+            //    if (hdRenderCamera != null && hdRenderCamera.GetRecorder().isValid)
+            //    {
+            //        hdRenderCamera.GetRecorder().enabled = true;
+            //        _cacheSamplers.Add(hdRenderCamera);
+            //    }
+            //}
         }
         
         /// <summary>
@@ -130,10 +130,10 @@ namespace Matory.HotMapSampler
             trianglesRecorder.Dispose();
             totalAllocatedMemoryRecorder.Dispose();
 #endif
-            foreach (var sample in _cacheSamplers)
-            {
-                sample.GetRecorder().enabled = false;
-            }
+            //foreach (var sample in _cacheSamplers)
+            //{
+            //    sample.GetRecorder().enabled = false;
+            //}
         }
     }
  }
