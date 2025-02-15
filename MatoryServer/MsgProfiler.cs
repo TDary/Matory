@@ -27,7 +27,7 @@ namespace Matory.Server
             catch(Exception ex)
             {
                 Debug.LogException(ex);
-                return null;
+                return ex;
             }
         }
     }
