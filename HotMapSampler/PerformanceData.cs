@@ -53,6 +53,7 @@ namespace Matory.HotMapSampler
         public string GetPerformaneceData()
         {
             sb.Clear();
+            sb.AppendFormat("{0},", Time.frameCount);
             sb.AppendFormat("{0},", fpsCounter.CurrentFps);
             FrameTimingManager.GetLatestTimings(1, timing);
             sb.AppendFormat("{0},", timing[0].gpuFrameTime);

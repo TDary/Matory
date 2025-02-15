@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Collections;
 using System.Linq;
 using System.IO;
+using Matory.HotMapSampler;
 
 namespace Matory
 {
@@ -43,6 +44,7 @@ namespace Matory
         private List<string> Collection_item = new List<string>();//存放采集项目
         private Coroutine ProfileIEnumerator = null;
         private string SnapShotFilePath = string.Empty;
+        private HotmapDataController _mHotmapController;
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -65,6 +67,9 @@ namespace Matory
             m_Pro.funMethods.Add("CaptureMemorySnap",TakeMemorySnapShot);
             m_Pro.funMethods.Add("SetCamera", SetCameraPosition);
             m_Pro.funMethods.Add("SetGameObjectState", GameObjectSwitch);
+            m_Pro.funMethods.Add("PerformanceData_Start",SampleDataStart);
+            m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStart);
+            m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -177,6 +182,7 @@ namespace Matory
                     }
                 }
             }
+            if (_mHotmapController != null) _mHotmapController.OnUpdate();
         }
 
         /// <summary>
@@ -666,6 +672,48 @@ namespace Matory
                     go.SetActive(val);
             }
             return "ok";
+        }
+
+        /// <summary>
+        /// 性能数据采集开始
+        /// </summary>
+        /// <returns></returns>
+        private object SampleDataStart(string ip, string[] args)
+        {
+            if (_mHotmapController == null)
+            {
+                _mHotmapController = new HotmapDataController();
+                _mHotmapController.Init();
+            }
+            string resFilepath = args[0];
+            if (int.TryParse(args[1],out int sampleArg))
+            {
+                return _mHotmapController.SampleStart(resFilepath, sampleArg);
+            }
+            else
+            {
+                return "Arg is error(not type int)";
+            }
+        }
+
+        /// <summary>
+        /// 获取单帧当前性能数据
+        /// </summary>
+        /// <returns></returns>
+        private object GetOneFrameData(string ip, string[] args)
+        {
+            if (_mHotmapController == null) return "采集对象为空，无法获取数据";
+            return _mHotmapController.GetOnePerformanceData();
+        }
+
+        /// <summary>
+        /// 性能数据采集结束
+        /// </summary>
+        /// <returns></returns>
+        private object SampleDataStop(string ip, string[] args)
+        {
+            if (_mHotmapController == null) return "采集对象为空，未开始采集不需要停止";
+            return _mHotmapController.SampleStop();
         }
 
         /// <summary>

@@ -63,9 +63,9 @@ namespace Matory.HotMapSampler
         /// 每帧写入
         /// </summary>
         /// <param name="logicframe"></param>
-        void WriteData(int logicframe)
+        void WriteData()
         {
-            sw.WriteLine($"{logicframe},{GetOnePerformanceData()}");
+            sw.WriteLine(GetOnePerformanceData());
         }
 
         /// <summary>
@@ -96,10 +96,10 @@ namespace Matory.HotMapSampler
         /// <summary>
         /// 每帧更新数据
         /// </summary>
-        void OnUpdate()
+        public void OnUpdate()
         {
             if(perfData!=null) perfData.OnUpdate();
-            if (sampleArg == 1 && isRunning) WriteData(Time.frameCount);
+            if (sampleArg == 1 && isRunning) WriteData();
         }
 
     }
