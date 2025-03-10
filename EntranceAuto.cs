@@ -17,6 +17,7 @@ using System.Collections;
 using System.Linq;
 using System.IO;
 using Matory.HotMapSampler;
+using Matory.Tools;
 
 namespace Matory
 {
@@ -45,6 +46,7 @@ namespace Matory
         private Coroutine ProfileIEnumerator = null;
         private string SnapShotFilePath = string.Empty;
         private HotmapDataController _mHotmapController;
+        private GeneratePoints _mGeneratePoints;
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -70,6 +72,7 @@ namespace Matory
             m_Pro.funMethods.Add("PerformanceData_Start",SampleDataStart);
             m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStop);
             m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
+            m_Pro.funMethods.Add("InitScenePointTool", InitGnerateTool);
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -715,6 +718,19 @@ namespace Matory
             if (_mHotmapController == null) return "采集对象为空，未开始采集不需要停止";
             return _mHotmapController.SampleStop();
         }
+
+        /// <summary>
+        /// 热力图点位生成工具初始化
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private object InitGnerateTool(string ip, string[] args)
+        {
+            if (_mGeneratePoints == null)
+                _mGeneratePoints = this.gameObject.AddComponent<GeneratePoints>();
+            return "Gnerate tool Init successful.";
+        } 
 
         /// <summary>
         /// 采集UnityProfiler数据
