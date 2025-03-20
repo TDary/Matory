@@ -1,10 +1,9 @@
-﻿using System;
+﻿using LitJson;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Matory.Tools
@@ -145,6 +144,95 @@ namespace Matory.Tools
                 isrunning = false;
                 yield break;
             }
+        }
+
+        public void StopGnerate()
+        {
+            isrunning = false;
+        }
+
+        public void AppendRotation(string scenename)
+        {
+            Dictionary<string, List<Vector3>> vecDic = new Dictionary<string, List<Vector3>>();
+            Dictionary<string, List<string>> transinfoDic = new Dictionary<string, List<string>>();
+            string[] lines = File.ReadAllLines(outputResPath);
+            foreach(var line in lines)
+            {
+                Vector3 vector = ParseVector3(line);
+                string key = $"{vector.x},{vector.z}";
+                if(!vecDic.ContainsKey(key))
+                {
+                    vecDic.Add(key, new List<Vector3>());
+                }
+                vecDic[key].Add(vector);
+            }
+            List<int> xlists = vecDic.Select(x => int.Parse(x.Key.Split(',')[0])).Distinct().OrderBy(p => p).ToList();
+            Dictionary<int, int> orderRuleDic = new Dictionary<int, int>();
+            int orderRule = 1;
+            foreach(var x in xlists)
+            {
+                orderRuleDic.Add(x, orderRule);
+                orderRule *= -1;
+            }
+            vecDic = vecDic.OrderBy(p => int.Parse(p.Key.Split(',')[0])).ThenBy(p => orderRuleDic[int.Parse(p.Key.Split(',')[0])] * int.Parse(p.Key.Split(',')[1])).ToDictionary(key => key.Key, key => key.Value);
+
+            foreach(var keyv in vecDic)
+            {
+                List<Vector3> vecLists = keyv.Value.OrderBy(v => v.y).ToList();
+                string key = vecLists.First().ToString();
+                if (!transinfoDic.ContainsKey(key))
+                {
+                    transinfoDic.Add(key, new List<string>());
+                }
+                transinfoDic[key].Add(new Vector3(0, 0, 0).ToString());  //四个方向角
+                transinfoDic[key].Add(new Vector3(0, 90, 0).ToString());
+                transinfoDic[key].Add(new Vector3(0, 180, 0).ToString());
+                transinfoDic[key].Add(new Vector3(0, 270, 0).ToString());
+
+                if (!onlyBottom)
+                {
+                    if (vecLists.Count > 1)
+                    {
+                        for (int i = 1; i < vecLists.Count; i++)
+                        {
+                            if (i == 2) continue;
+                            if (i > 3)
+                                break;
+                            key = vecLists[i].ToString();
+                            if (!transinfoDic.ContainsKey(key))
+                            {
+                                transinfoDic.Add(key, new List<string>());
+                            }
+                            transinfoDic[key].Add(new Vector3(0, 0, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(0, 90, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(0, 180, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(0, 270, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(45, 0, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(45, 90, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(45, 180, 0).ToString());
+                            transinfoDic[key].Add(new Vector3(45, 270, 0).ToString());
+                        }
+                    }
+                }
+            }
+            string jsonData = JsonMapper.ToJson(transinfoDic);
+            string jsonPath = Application.streamingAssetsPath + $"/Matory/{scenename}_Point.json";
+            File.WriteAllText(jsonPath, jsonData);
+        }
+
+        /// <summary>
+        /// 转换字符串的数据为Vector3对象
+        /// </summary>
+        /// <param name="infostr"></param>
+        /// <returns></returns>
+       Vector3 ParseVector3(string infostr)
+        {
+            infostr = infostr.Replace("(", "").Replace(")", "");
+            var splitData = infostr.Split(',');
+            if (splitData.Length > 2)
+                return new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
+            else
+                return Vector3.zero;
         }
     }
 }
