@@ -102,6 +102,10 @@
 	<Reference Include="UnityEngine.PhysicsModule">
 	  <HintPath>D:\Unity2022\Data\Managed\UnityEngine\UnityEngine.PhysicsModule.dll</HintPath>
 	</Reference>
+	<Reference Include="UnityEngine.IMGUIModule">
+	  <HintPath>D:\Unity2022\Data\Managed\UnityEngine\UnityEngine.IMGUIModule.dll</HintPath>
+	</Reference>
+	
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -47,6 +47,7 @@ namespace Matory
         private string SnapShotFilePath = string.Empty;
         private HotmapDataController _mHotmapController;
         private GeneratePoints _mGeneratePoints;
+        private Dictionary<string, bool> m_profilerSampleModules = new Dictionary<string, bool>();
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -56,6 +57,7 @@ namespace Matory
             m_Pro.funMethods.Add("StopConnection",StopConnection);
             m_Pro.funMethods.Add("Find_Text", FindText);
             m_Pro.funMethods.Add("Find_AllButton", FindAllButton);
+            m_Pro.funMethods.Add("Set_ProfilerSampleModules", SetProfilerSampleModules);
             m_Pro.funMethods.Add("Gather_Profiler",GatherProfiler);
             m_Pro.funMethods.Add("Check_Profiler",CheckProfilerData);
             m_Pro.funMethods.Add("Get_Hierarchy",GetHierarchy);
@@ -847,14 +849,89 @@ namespace Matory
             }
         }
 
+        private object SetProfilerSampleModules(string ip, string[] args)
+        {
+            try
+            {
+                Dictionary<string, bool> modules = JsonMapper.ToObject<Dictionary<string, bool>>(args[1]);
+                foreach (var item in modules.Keys)
+                {
+                    bool dicVal = false;
+                    if (m_profilerSampleModules.TryGetValue(item, out dicVal))
+                        m_profilerSampleModules[item] = dicVal;
+                    else
+                        m_profilerSampleModules.Add(item, modules[item]);
+                }
+                return "SetSampleModule successful!";
+            }
+           catch(Exception ex)
+            {
+                return ex.ToString();
+            }
+        }
+
+        private void BeginProfilerModules(Dictionary<string,bool> modules)
+        {
+            if (modules.Count < 1)  //未设置采集模块时将其他模块关闭，只开启CPU模块函数相关采集
+            {
+                Profiler.SetAreaEnabled(ProfilerArea.CPU, true);
+                Profiler.SetAreaEnabled(ProfilerArea.Rendering, false);
+                Profiler.SetAreaEnabled(ProfilerArea.Memory, false);
+                Profiler.SetAreaEnabled(ProfilerArea.Physics, false);
+                Profiler.SetAreaEnabled(ProfilerArea.Audio, false);
+                Profiler.SetAreaEnabled(ProfilerArea.UI, false);
+                Profiler.SetAreaEnabled(ProfilerArea.GlobalIllumination, false);
+                Profiler.SetAreaEnabled(ProfilerArea.NetworkMessages, false);
+                Profiler.SetAreaEnabled(ProfilerArea.Physics2D, false);
+                Profiler.SetAreaEnabled(ProfilerArea.Video, false);
+                Profiler.SetAreaEnabled(ProfilerArea.NetworkOperations, false);
+            }
+            else
+            {
+                foreach (var val in modules)
+                {
+                    switch (val.Key)
+                    {
+                        case "CPU":
+                            Profiler.SetAreaEnabled(ProfilerArea.CPU, val.Value);
+                            break;
+                        case "Rendering":
+                            Profiler.SetAreaEnabled(ProfilerArea.Rendering, val.Value);
+                            break;
+                        case "Memory":
+                            Profiler.SetAreaEnabled(ProfilerArea.Memory, val.Value);
+                            break;
+                        case "Physics":
+                            Profiler.SetAreaEnabled(ProfilerArea.Physics, val.Value);
+                            Profiler.SetAreaEnabled(ProfilerArea.Physics2D, val.Value);
+                            break;
+                        case "Audio":
+                            Profiler.SetAreaEnabled(ProfilerArea.Audio, val.Value);
+                            break;
+                        case "Video":
+                            Profiler.SetAreaEnabled(ProfilerArea.Video, val.Value);
+                            break;
+                        case "UI":
+                            Profiler.SetAreaEnabled(ProfilerArea.UI, val.Value);
+                            break;
+                        case "GI":
+                            Profiler.SetAreaEnabled(ProfilerArea.GlobalIllumination, val.Value);
+                            break;
+                        case "Network":
+                            Profiler.SetAreaEnabled(ProfilerArea.NetworkMessages, val.Value);
+                            Profiler.SetAreaEnabled(ProfilerArea.NetworkOperations, val.Value);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+
         private void BeginGather(string fileName)
         {
             ProfilerBeginFrame = Time.frameCount;
-            Profiler.SetAreaEnabled(ProfilerArea.CPU, true);
-            Profiler.SetAreaEnabled(ProfilerArea.Rendering, true);
-            Profiler.SetAreaEnabled(ProfilerArea.Memory, true);
-            Profiler.SetAreaEnabled(ProfilerArea.Physics, true);
-            Profiler.SetAreaEnabled(ProfilerArea.UI, true);
+            BeginProfilerModules(m_profilerSampleModules);
             //标记data文件最大使用1GB储存空间,在磁盘存储空间比较紧张的情况下用
             Profiler.maxUsedMemory = 1024 * 1024 *1024;
 
