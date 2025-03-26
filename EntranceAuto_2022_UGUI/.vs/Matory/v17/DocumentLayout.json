@@ -1,0 +1,151 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "F:\\Matory\\Matory\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{394944A4-390A-4EB1-9F73-C04719841450}|..\\EntranceAuto_2022_NGUI\\EntranceAuto_2022_NGUI.csproj|f:\\matory\\entranceauto_2022_ngui\\entranceauto_2022_ngui.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|f:\\matory\\matory\\entranceauto_2022_ugui.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:entranceauto_2022_ugui.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|f:\\matory\\matory\\tools\\generatepoints.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:tools\\generatepoints.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|F:\\Matory\\Matory\\MatoryServer\\MsgProfiler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:MatoryServer\\MsgProfiler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|F:\\Matory\\Matory\\tools\\generatepoints_editor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:tools\\generatepoints_editor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|F:\\Matory\\Matory\\Net\\SocketServer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:Net\\SocketServer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|F:\\Matory\\Matory\\hotmapsampler\\performancedata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:hotmapsampler\\performancedata.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|F:\\Matory\\Matory\\HotMapSampler\\FpsCounter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B6CAE0E5-9D63-4503-BE34-CC2C332E806E}|Matory.csproj|solutionrelative:HotMapSampler\\FpsCounter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "EntranceAuto_2022_NGUI.cs",
+              "DocumentMoniker": "F:\\Matory\\EntranceAuto_2022_NGUI\\EntranceAuto_2022_NGUI.cs",
+              "RelativeDocumentMoniker": "..\\EntranceAuto_2022_NGUI\\EntranceAuto_2022_NGUI.cs",
+              "ToolTip": "F:\\Matory\\EntranceAuto_2022_NGUI\\EntranceAuto_2022_NGUI.cs",
+              "RelativeToolTip": "..\\EntranceAuto_2022_NGUI\\EntranceAuto_2022_NGUI.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAADwvwoAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-26T09:09:19.908Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "EntranceAuto_2022_UGUI.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\EntranceAuto_2022_UGUI.cs",
+              "RelativeDocumentMoniker": "EntranceAuto_2022_UGUI.cs",
+              "ToolTip": "F:\\Matory\\Matory\\EntranceAuto_2022_UGUI.cs",
+              "RelativeToolTip": "EntranceAuto_2022_UGUI.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-10-23T06:51:40.03Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "GeneratePoints.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\Tools\\GeneratePoints.cs",
+              "RelativeDocumentMoniker": "Tools\\GeneratePoints.cs",
+              "ToolTip": "F:\\Matory\\Matory\\Tools\\GeneratePoints.cs",
+              "RelativeToolTip": "Tools\\GeneratePoints.cs",
+              "ViewState": "AgIAAEEAAAAAAAAAAAA4wKEAAAA1AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-10T07:13:48.538Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "FpsCounter.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\HotMapSampler\\FpsCounter.cs",
+              "RelativeDocumentMoniker": "HotMapSampler\\FpsCounter.cs",
+              "ToolTip": "F:\\Matory\\Matory\\HotMapSampler\\FpsCounter.cs",
+              "RelativeToolTip": "HotMapSampler\\FpsCounter.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-02-25T07:43:01.785Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "MsgProfiler.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\MatoryServer\\MsgProfiler.cs",
+              "RelativeDocumentMoniker": "MatoryServer\\MsgProfiler.cs",
+              "ToolTip": "F:\\Matory\\Matory\\MatoryServer\\MsgProfiler.cs",
+              "RelativeToolTip": "MatoryServer\\MsgProfiler.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAAbAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-13T07:32:03.612Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "GeneratePoints_Editor.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\Tools\\GeneratePoints_Editor.cs",
+              "RelativeDocumentMoniker": "Tools\\GeneratePoints_Editor.cs",
+              "ToolTip": "F:\\Matory\\Matory\\Tools\\GeneratePoints_Editor.cs",
+              "RelativeToolTip": "Tools\\GeneratePoints_Editor.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB8AAAApAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-03-10T09:23:49.378Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "PerformanceData.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\HotMapSampler\\PerformanceData.cs",
+              "RelativeDocumentMoniker": "HotMapSampler\\PerformanceData.cs",
+              "ToolTip": "F:\\Matory\\Matory\\HotMapSampler\\PerformanceData.cs",
+              "RelativeToolTip": "HotMapSampler\\PerformanceData.cs",
+              "ViewState": "AgIAACQAAAAAAAAAAAAAADMAAAAfAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-02-25T07:42:59.033Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "SocketServer.cs",
+              "DocumentMoniker": "F:\\Matory\\Matory\\Net\\SocketServer.cs",
+              "RelativeDocumentMoniker": "Net\\SocketServer.cs",
+              "ToolTip": "F:\\Matory\\Matory\\Net\\SocketServer.cs",
+              "RelativeToolTip": "Net\\SocketServer.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-13T08:14:40.845Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
