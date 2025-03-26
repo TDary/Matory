@@ -13,9 +13,9 @@ namespace Matory.Tools
     /// </summary>
     public class GeneratePoints:MonoBehaviour
     {
-        public Vector3 originalPosition = new Vector3(1000, 2000, 3000);
-        public Vector3 fromPosition = new Vector3(0, 2000, 0);
-        public Vector3 endPosition = new Vector3(20000, 1000, 20000);
+        public Vector3 originalPosition = new Vector3(27,1, -46);
+        public Vector3 fromPosition = new Vector3(27, 1, -46);
+        public Vector3 endPosition = new Vector3(-43, 10, 32);
         public bool distanceLimit = false,onlyBottom = true;
         public int distanceInterval = 50;
         public int rayRadius = 5;  //射线半径
@@ -52,7 +52,10 @@ namespace Matory.Tools
         {
             if (!string.IsNullOrEmpty(filepath))
                 outputResPath = filepath;
-
+            if (!Directory.Exists(Path.GetDirectoryName(outputResPath)))
+                Directory.CreateDirectory(Path.GetDirectoryName(outputResPath));
+            if (!File.Exists(outputResPath))
+                File.Create(outputResPath);
             if (fromPosition != null && endPosition != null)
             {
                 var middle = endPosition;

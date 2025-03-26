@@ -1,4 +1,5 @@
 ﻿// 将此脚本放到UnityEditor文件夹中
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -61,7 +62,6 @@ namespace Matory.Tools
             if (GUILayout.Button("测试射线", GUILayout.Width(150)))
             {
                 RaycastHit[] hitInfos = Physics.CapsuleCastAll(from, from + Vector3.up, 20, end - from, 100);
-                //RaycastHit[] hitInfos = Physics.RaycastAll(from, end - from, 100);
                 if (hitInfos.Length == 0 || hitInfos.All(p => p.collider.isTrigger == true))
                 {
                     Debug.Log("无碰撞");
