@@ -33,6 +33,21 @@ namespace Matory.Net
 			SockeServer.Close();
 		}
 
+		/// <summary>
+		/// 判断当前ip是否在连接状态
+		/// </summary>
+		/// <param name="ip"></param>
+		/// <returns></returns>
+		public bool IsInConnecting(string ip)
+		{
+			foreach(var val in SessionPool.Keys)
+			{
+				if (val.Equals(ip))
+					return true;
+			}
+			return false;
+		}
+
 		#region 处理客户端连接请求
 		/// <summary>
 		/// 处理客户端连接请求

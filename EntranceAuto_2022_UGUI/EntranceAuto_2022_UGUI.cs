@@ -44,6 +44,7 @@ namespace Matory
         private string Profiler_path;
         private List<string> Collection_item = new List<string>();//存放采集项目
         private Coroutine ProfileIEnumerator = null;
+        private Coroutine RecordUIOperateCoroutine = null;
         private string SnapShotFilePath = string.Empty;
         private HotmapDataController _mHotmapController;
         private GeneratePoints _mGeneratePoints;
@@ -557,6 +558,33 @@ namespace Matory
         }
         #endregion
 
+        #region 录制客户端UI操作
+        IEnumerator RecordUIClick(string current_ip)
+        {
+            while (true)
+            {
+                if(!socketServer.IsInConnecting(current_ip))
+                {
+                    Debug.LogWarning("由于客户端断开链接，终止录制----");
+                    break;
+                }
+                yield return null;
+            }
+        }
+
+        private object StartRecordUIOperate(string ip, string[] args)
+        {
+            try
+            {
+                RecordUIOperateCoroutine = StartCoroutine(RecordUIClick(ip));
+                return "ok";
+            }
+            catch(Exception ex)
+            {
+                return ex.ToString();
+            }
+        }
+        #endregion
 
         #region 获取游戏引擎版本
         private object GetGameEngineVersion(string ip,string[] args)
@@ -767,7 +795,7 @@ namespace Matory
                             }
                         }
                         startGatherMsg = true;
-                        ProfileIEnumerator = StartCoroutine(StartGatherProfiler());
+                        ProfileIEnumerator = StartCoroutine(StartGatherProfiler(ip));
                         response["profiler_gather"] = true;
                     }
                     else
@@ -809,7 +837,7 @@ namespace Matory
             return JsonMapper.ToJson(response);
         }
 
-        private IEnumerator StartGatherProfiler()
+        private IEnumerator StartGatherProfiler(string current_ip)
         {
             InitProfiler();
             while (startGatherMsg)
@@ -830,6 +858,11 @@ namespace Matory
                     BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
                     isGathering = true;
                     frameNum++;
+                }
+                if (!socketServer.IsInConnecting(current_ip))
+                {
+                    Debug.LogWarning("由于Socket断开链接，终止数据采集----");
+                    break;
                 }
                 yield return null;
             }
