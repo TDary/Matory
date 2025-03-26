@@ -5,13 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using Unity.EditorCoroutines.Editor;
 
 namespace Matory.Tools
 {
     /// <summary>
     /// 场景热力图点位生成工具
     /// </summary>
-    public class GeneratePoints:MonoBehaviour
+    public class GeneratePoints
     {
         public Vector3 originalPosition = new Vector3(27,1, -46);
         public Vector3 fromPosition = new Vector3(27, 1, -46);
@@ -79,7 +80,7 @@ namespace Matory.Tools
             positionList = new List<Vector3>();
             positionList.Add(originalPosition);
             File.WriteAllText(outputResPath, originalPosition.ToString());
-            StartCoroutine(BeginGenerate(originalPosition));
+            EditorCoroutineUtility.StartCoroutine(BeginGenerate(originalPosition),this);
         }
 
         /// <summary>
@@ -113,13 +114,13 @@ namespace Matory.Tools
                             pass.x >= fromPosition.x && pass.y >= fromPosition.y && pass.z >= fromPosition.z)
                             {
                                 positionList.Add(pass);
-                                StartCoroutine(BeginGenerate(pass));
+                                EditorCoroutineUtility.StartCoroutine(BeginGenerate(pass), this);
                             }
                         }
                         else
                         {
                             positionList.Add(pass);
-                            StartCoroutine(BeginGenerate(pass));
+                            EditorCoroutineUtility.StartCoroutine(BeginGenerate(pass), this);
                         }
                     }
                 }
