@@ -424,7 +424,7 @@ namespace Matory
         {
             try
             {
-                int objId = int.Parse(args[1]);
+                int objId = int.Parse(args[0]);
 
                 GameObject obj = null;
 
@@ -647,8 +647,8 @@ namespace Matory
         /// <returns></returns>
         private object SetCameraPosition(string ip, string[] args)
         {
-            var position = args[0];
-            var rotation = args[1];
+            var position = args[0].Split(',');
+            var rotation = args[1].Split(',');
             float position_x = Convert.ToSingle(position[0]);
             float position_y = Convert.ToSingle(position[1]);
             float position_z = Convert.ToSingle(position[2]);
