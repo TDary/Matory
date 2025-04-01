@@ -18,6 +18,10 @@ using System.Linq;
 using System.IO;
 using Matory.HotMapSampler;
 using Matory.Tools;
+using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
+using Matory.MatoryServer;
+using UnityEditor.PackageManager;
 
 namespace Matory
 {
@@ -25,11 +29,9 @@ namespace Matory
     {
         private SocketServer socketServer;
         private int port = 2666;
-        private bool startGatherMsg = false;
-        private bool isGathering = false;
+        private bool startGatherMsg = false, isGathering = false, isRecording=false;
         public MsgProfiler m_Pro;
-        private int frameNum = 0;
-        private int ProfilerBeginFrame = 0;
+        private int frameNum = 0, ProfilerBeginFrame = 0;
         private int fileNum = 0;
         private List<string> profilerDataNames;
         private List<string> profilerDataPaths;
@@ -39,15 +41,15 @@ namespace Matory
         private ConcurrentQueue<MsgForSend> SendMsgPool = new ConcurrentQueue<MsgForSend>();
         private ConcurrentQueue<TransData> GetMsgPool = new ConcurrentQueue<TransData>();
         private Dictionary<string,TransData> GetTransDataPool = new Dictionary<string,TransData>(20);
-        private int requestCount = 0;
-        private int sendCount = 0;
+        private Dictionary<string, string> data = new Dictionary<string, string>();
+        private int requestCount = 0, sendCount = 0;
         private string Profiler_path;
         private List<string> Collection_item = new List<string>();//存放采集项目
         private Coroutine ProfileIEnumerator = null;
         private Coroutine RecordUIOperateCoroutine = null;
         private string SnapShotFilePath = string.Empty;
         private HotmapDataController _mHotmapController;
-        private GeneratePoints _mGeneratePoints;
+        private StringBuilder dataJson = new StringBuilder();
         private Dictionary<string, bool> m_profilerSampleModules = new Dictionary<string, bool>();
         public void Init()
         {
@@ -75,6 +77,8 @@ namespace Matory
             m_Pro.funMethods.Add("PerformanceData_Start",SampleDataStart);
             m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStop);
             m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
+            m_Pro.funMethods.Add("Start_Record", StartRecordUIOperate);
+
             for (int i = 0; i < 5; i++)
             {
                 bool thisport = IsPortInUse(port + i);
@@ -561,12 +565,157 @@ namespace Matory
         #region 录制客户端UI操作
         IEnumerator RecordUIClick(string current_ip)
         {
+            float quitTime = 0, maxQuitTime = 7;
+            float lastTime = Time.unscaledTime, nowTime = Time.unscaledTime;
+            Selectable selectable = null;
+            GameObject lastPressGameObject = null;
+            GameObject lastSelectedGameObject = null, flagGameObject = null;
+            string textVaule;
             while (true)
             {
+
                 if(!socketServer.IsInConnecting(current_ip))
                 {
                     Debug.LogWarning("由于客户端断开链接，终止录制----");
+                    isRecording = false;
+                    StopCoroutine(RecordUIOperateCoroutine);
+                    RecordUIOperateCoroutine = null;
                     break;
+                }
+
+                if (isRecording)
+                {
+                    if (Input.GetMouseButton(0))
+                    {
+                        quitTime += Time.unscaledDeltaTime;
+                        List<Graphic> allgraphics = FindAllGameObject<Graphic>();
+                        Vector2 mousePos = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+                        dataJson.Clear();
+                        dataJson.Append("[");
+                        foreach (var graphic in allgraphics)
+                        {
+                            RectTransform rect = graphic.gameObject.GetComponent<RectTransform>();
+                            Vector3[] targetPoint = GetScreenCoordinates(rect);
+                            if (targetPoint[0].x < mousePos.x && targetPoint[2].x > mousePos.x && targetPoint[0].y < mousePos.y && targetPoint[2].y > mousePos.y)
+                            {
+                                string path = GetGameObjectPath(rect.gameObject);
+                                dataJson.Append("{\"path\":\"" + path + "\",\"id\":\"" + rect.gameObject.GetInstanceID().ToString() + "\"},");
+                            }
+                        }
+                        if (dataJson.Length > 1)
+                            dataJson.Remove(dataJson.Length - 1, 1);
+                        dataJson.Append("]");
+                        //发送给上层python端数据
+                        SendMsg(dataJson.ToString());
+                    }
+                    else
+                    {
+                        quitTime = 0;
+                    }
+
+                    if(quitTime >= maxQuitTime)
+                    {
+                        Debug.LogWarning("Close record ui operation.");
+                        //发送给上层python端数据
+                        SendMsg("Close record ui operation.");
+                        StopCoroutine(RecordUIOperateCoroutine);
+                        RecordUIOperateCoroutine = null;
+                        yield break;
+                    }
+
+                    try
+                    {
+                        if(selectable!=null && selectable is IDragHandler && Input.GetMouseButtonUp(0))
+                        {
+                            data.Add("name", GetGameObjectPath(selectable.gameObject));
+                            data.Add("type", selectable.GetType().ToString());
+                            data.Add("end position", Input.mousePosition.ToString());
+                            data.Add("time", (nowTime - lastTime).ToString());
+                            SendMsg(JsonMapper.ToJson(data));
+                            data.Clear();
+                            selectable = null;
+                        }
+                        if (Input.GetMouseButtonDown(0))
+                        {
+                            Vector2 pos = Input.mousePosition;
+                            data.Add("press position", pos.ToString());
+                            float percentX = pos.x / Screen.width;
+                            float percentY = pos.y / Screen.height;
+                            data.Add("percent position", $"({percentX},{percentY})");
+                            Touch touch = new Touch { position = pos };
+                            PointerEventData pointerEventData = MockUpPointerInputModule.GetPointerEventData(touch);
+                            if (pointerEventData.pointerPress != null)
+                                lastPressGameObject = pointerEventData.pointerPress;
+                        }
+                        else
+                            lastPressGameObject = null;
+
+                        if(flagGameObject != lastPressGameObject)
+                        {
+                            lastTime = nowTime;
+                            nowTime = Time.unscaledTime;
+                            flagGameObject = lastPressGameObject;
+                            if (!lastSelectedGameObject == flagGameObject)
+                            {
+                                //重复选中物体时
+                                //quitFlag++;
+                            }
+                            else
+                            {
+                                //当切换选中物体时
+                                if (lastSelectedGameObject != null)
+                                {
+                                    InputField inputField = lastSelectedGameObject.GetComponent<InputField>();
+                                    if (inputField)
+                                    {
+                                        textVaule = inputField.text;
+
+                                        data.Add("name", GetGameObjectPath(lastSelectedGameObject));
+                                        data.Add("type", inputField.GetType().ToString());
+                                        data.Add("value", textVaule);
+                                        data.Add("time", (nowTime - lastTime).ToString());
+                                        SendMsg(JsonMapper.ToJson(data));
+                                        data.Clear();
+                                    }
+                                }
+                                lastSelectedGameObject = flagGameObject;
+                            }
+                            if (flagGameObject != null) 
+                                selectable = flagGameObject.GetComponent<Selectable>();
+                            else 
+                                selectable = null;
+                            if (socketServer.IsInConnecting(current_ip))
+                            {
+                                data.Add("name", GetGameObjectPath(flagGameObject));
+                                if (selectable)
+                                {
+                                    data.Add("type", selectable.GetType().ToString());
+                                    if(selectable is IDragHandler && Input.GetMouseButtonDown(0))
+                                    {
+                                        data.Add("start position", Input.mousePosition.ToString());
+                                    }
+                                }
+                                data.Add("time", (nowTime - lastTime).ToString());
+                                SendMsg(JsonMapper.ToJson(data));
+                                data.Clear();
+                            }
+                            if (!(selectable is InputField))
+                            {
+                                //不将这个置为空点击相同的控件就不会发送数据，但将这个置为空后，会影响ui的使用
+                                // EventSystem.current.SetSelectedGameObject(null);
+                                flagGameObject = null;
+                            }
+                        }
+                        if(data.Count > 0)
+                        {
+                            SendMsg(JsonMapper.ToJson(data));
+                            data.Clear();
+                        }
+                    }
+                    catch(Exception ex)
+                    {
+                        SendMsg(ex.ToString());
+                    }
                 }
                 yield return null;
             }
@@ -576,7 +725,15 @@ namespace Matory
         {
             try
             {
-                RecordUIOperateCoroutine = StartCoroutine(RecordUIClick(ip));
+                if (!isRecording)
+                {
+                    isRecording = true;
+                    RecordUIOperateCoroutine = StartCoroutine(RecordUIClick(ip));
+                }
+                else
+                {
+                    Debug.LogWarning("UI录制已经是开启的状态----");
+                }
                 return "ok";
             }
             catch(Exception ex)
@@ -584,6 +741,163 @@ namespace Matory
                 return ex.ToString();
             }
         }
+
+        private object StopRecordUIOperate(string ip, string[] args)
+        {
+            isRecording = false;
+            StopCoroutine(RecordUIOperateCoroutine);
+            return "ok";
+        }
+
+        class Node
+        {
+            public string path;
+
+            [NonSerialized]
+            public GameObject obj;
+        }
+
+        private List<T> FindAllGameObject<T>()
+        {
+            List<T> gameObjects = new List<T>();
+
+            Action<Node> action = n =>
+            {
+                T t = n.obj.GetComponent<T>();
+                if (n.obj != null && t != null)
+                {
+                    gameObjects.Add(t);
+                }
+            };
+            FindAllGameObject(action);
+            return gameObjects;
+        }
+
+        private void FindAllGameObject(Action<Node> action)
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+            {
+                foreach (GameObject obj in SceneManager.GetSceneAt(i).GetRootGameObjects())
+                {
+                    try
+                    {
+                        FindAllObjectFromParent(obj, GetGameObjectPath(obj), action);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+            GameObject temp = null;
+            try
+            {
+                temp = new GameObject();
+                DontDestroyOnLoad(temp);
+                Scene dontDestroyOnLoad = temp.scene;
+                DestroyImmediate(temp);
+                temp = null;
+                foreach (GameObject obj in dontDestroyOnLoad.GetRootGameObjects())
+                {
+                    try
+                    {
+                        FindAllObjectFromParent(obj, GetGameObjectPath(obj), action);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+            }
+            finally
+            {
+                if (temp != null)
+                    DestroyImmediate(temp);
+            }
+        }
+
+        private string GetGameObjectPath(GameObject obj)
+        {
+            if (obj == null) return "null";
+            string path = "/" + obj.name;
+            Transform parentTransform = obj.transform.parent;
+            while (parentTransform != null)
+            {
+                path = "/" + parentTransform.name + path;
+                parentTransform = parentTransform.parent;
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// 获取物体的全部子物体
+        /// </summary>
+        /// <param name="parent">父物体</param>
+        /// <param name="parentPath">父路径</param>
+        /// <param name="each">对于每一个子物体执行的行为</param>
+        private void FindAllObjectFromParent(GameObject parent, string parentPath, Action<Node> each = null, bool isActive = false)
+        {
+            if (parent == null || (isActive && !parent.activeInHierarchy)) throw new Exception(Error.NotFoundMessage);
+            Node root = new Node()
+            {
+                path = parentPath,
+                obj = parent,
+            };
+            List<Node> nodes = new List<Node>();
+            nodes.Add(root);
+            int index = 0;
+            Transform p;
+            Node now;
+            while (index != nodes.Count)
+            {
+                now = nodes[index];
+                p = now.obj.transform;
+                foreach (Transform transform in p)
+                {
+                    Node temp = new Node()
+                    {
+                        path = now.path + "/" + transform.name,
+                        obj = transform.gameObject,
+                    };
+                    nodes.Add(temp);
+                    if (each != null)
+                    {
+                        each(temp);
+                    }
+                }
+                index++;
+            }
+        }
+
+        /// <summary>
+        /// 获取RectTransform屏幕空间的下的四个点,顺序：左下、左上、右上、右下 
+        /// </summary>
+        /// <param name="uiElement">目标RectTransform</param>
+        /// <returns></returns>
+        private Vector3[] GetScreenCoordinates(RectTransform uiElement)
+        {
+            var worldCorners = new Vector3[4];
+            var screenCorners = new Vector3[4];
+            uiElement.GetWorldCorners(worldCorners);
+            Canvas canvas = uiElement.GetComponentInParent<Canvas>();
+            if (canvas == null) canvas = uiElement.GetComponent<Canvas>();
+            if (canvas == null) return worldCorners;
+            Camera camera;
+            if (canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                camera = canvas.worldCamera;
+            else
+                camera = Camera.main;
+            if (camera != null && camera != Camera.main)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    screenCorners[i] = RectTransformUtility.WorldToScreenPoint(camera, worldCorners[i]);
+                }
+                return screenCorners;
+            }
+            return worldCorners;
+        }
+
         #endregion
 
         #region 获取游戏引擎版本

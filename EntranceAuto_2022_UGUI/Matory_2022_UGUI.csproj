@@ -61,6 +61,7 @@
     <Compile Include="HotMapSampler\HotmapDataController.cs" />
     <Compile Include="HotMapSampler\PerformanceData.cs" />
     <Compile Include="LitJson\LitJsonHelper.cs" />
+    <Compile Include="MatoryServer\MockUpPointerInputModule.cs" />
     <Compile Include="MatoryServer\MsgProfiler.cs" />
     <Compile Include="MatoryServer\ParseServer.cs" />
     <Compile Include="Net\SocketServer.cs" />
