@@ -17,11 +17,10 @@ using System.Collections;
 using System.Linq;
 using System.IO;
 using Matory.HotMapSampler;
-using Matory.Tools;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using Matory.MatoryServer;
-using UnityEditor.PackageManager;
+using System.Globalization;
 
 namespace Matory
 {
@@ -991,12 +990,12 @@ namespace Matory
         {
             var position = args[0].Split(',');
             var rotation = args[1].Split(',');
-            float position_x = Convert.ToSingle(position[0]);
-            float position_y = Convert.ToSingle(position[1]);
-            float position_z = Convert.ToSingle(position[2]);
-            float rotate_x = Convert.ToSingle(rotation[0]);
-            float rotate_y = Convert.ToSingle(rotation[1]);
-            float rotate_z = Convert.ToSingle(rotation[2]);
+            float position_x = float.Parse(position[0],CultureInfo.InvariantCulture);
+            float position_y = float.Parse(position[1], CultureInfo.InvariantCulture);
+            float position_z = float.Parse(position[2], CultureInfo.InvariantCulture);
+            float rotate_x = float.Parse(rotation[0], CultureInfo.InvariantCulture);
+            float rotate_y = float.Parse(rotation[1], CultureInfo.InvariantCulture);
+            float rotate_z = float.Parse(rotation[2], CultureInfo.InvariantCulture);
             Vector3 changePosition = new Vector3(position_x, position_y, position_z);
             Camera.main.transform.position = changePosition;
             Camera.main.transform.rotation = Quaternion.Euler(rotate_x, rotate_y, rotate_z);
