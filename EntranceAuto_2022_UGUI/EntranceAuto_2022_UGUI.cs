@@ -21,6 +21,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using Matory.MatoryServer;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace Matory
 {
@@ -50,6 +51,18 @@ namespace Matory
         private HotmapDataController _mHotmapController;
         private StringBuilder dataJson = new StringBuilder();
         private Dictionary<string, bool> m_profilerSampleModules = new Dictionary<string, bool>();
+        #region DMemTracker
+        [DllImport("MemTrace.dll", EntryPoint = "InitMemTrace")]
+        public static extern bool InitMemTrace();
+        [DllImport("MemTrace.dll", EntryPoint = "UpdateMemory")]
+        public static extern void UpdateMemory();
+        [DllImport("MemTrace.dll", EntryPoint = "GetCurrentProcessMemory")]
+        public static extern ulong GetProcessMemory();
+        [DllImport("MemTrace.dll", EntryPoint = "GetCurrentCPUUsage")]
+        public static extern double GetCurrentCPUUsage();
+        bool isInit_track = false;
+        public double memoryLimitMB = 2048;
+        #endregion
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -77,6 +90,9 @@ namespace Matory
             m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStop);
             m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
             m_Pro.funMethods.Add("Start_Record", StartRecordUIOperate);
+            m_Pro.funMethods.Add("Stop_Record", StopRecordUIOperate);
+            m_Pro.funMethods.Add("Start_DTracker", StartTracker);
+            m_Pro.funMethods.Add("Set_DTrackerLimit", SetSnapAndMemoryLimit);
 
             for (int i = 0; i < 5; i++)
             {
@@ -191,6 +207,7 @@ namespace Matory
                 }
             }
             if (_mHotmapController != null) _mHotmapController.OnUpdate();
+            if (isInit_track) UpdateMemory();
         }
 
         /// <summary>
@@ -741,11 +758,84 @@ namespace Matory
             }
         }
 
+        private object SetSnapAndMemoryLimit(string ip, string[] args)
+        {
+            if (args.Length > 1)
+            {
+                SnapShotFilePath = args[0];  // snapFilePath
+                memoryLimitMB = double.Parse(args[1]); // memoryLimitMB
+                Debug.Log($"Set snap path {SnapShotFilePath} and memory limit {memoryLimitMB}MB.");
+                return "Set snap and memoryLimit sucessful.";
+            }
+            return "Set snap and memoryLimit failed.";
+        }
+
+        private object StartTracker(string ip, string[] args)
+        {
+            if (isInit_track)
+            {
+                StartCoroutine(MonitorLogic());
+                return "Tracker has been started.";
+            }
+            if (InitMemTrace())
+            {
+                isInit_track = true;
+                StartCoroutine(MonitorLogic());
+                return "Start Tracker sucessful.";
+            }
+            return "Start Tracker failed.";
+        }
+
         private object StopRecordUIOperate(string ip, string[] args)
         {
             isRecording = false;
             StopCoroutine(RecordUIOperateCoroutine);
             return "ok";
+        }
+
+        // 转换单位
+        double ToMBMemory(ulong mem)
+        {
+            return Math.Round((double)mem / (1024 * 1024), 2);
+        }
+
+        IEnumerator MonitorLogic()
+        {
+            if (memoryLimitMB == 0)
+                yield return null;
+            WaitForSeconds waitSecond = new WaitForSeconds(1f);
+            Debug.Log("开始进行内存监控——");
+            while (true)
+            {
+                if (ToMBMemory(GetProcessMemory()) >= memoryLimitMB)
+                {
+                    if (string.IsNullOrEmpty(SnapShotFilePath))
+                    {
+                        SnapShotFilePath = Path.Combine(Application.persistentDataPath, DateTimeOffset.Now.ToUnixTimeSeconds().ToString(), ".snap");
+                    }
+                    else
+                    {
+#if UNITY_2022_3_OR_NEWER
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(SnapShotFilePath, MemorySnapShotCallBack, 
+                            Unity.Profiling.Memory.CaptureFlags.ManagedObjects | Unity.Profiling.Memory.CaptureFlags.NativeObjects | 
+                            Unity.Profiling.Memory.CaptureFlags.NativeAllocations | Unity.Profiling.Memory.CaptureFlags.NativeAllocationSites | 
+                            Unity.Profiling.Memory.CaptureFlags.NativeStackTraces);
+#elif UNITY_2021_1_OR_NEWER
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(SnapShotFilePath, MemorySnapShotCallBack,
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
+#else
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(SnapShotFilePath, MemorySnapShotCallBack,
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
+                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
+#endif
+                        break;
+                    }
+                }
+                yield return waitSecond;  // 每秒执行检测一次
+            }
         }
 
         class Node
@@ -897,7 +987,7 @@ namespace Matory
             return worldCorners;
         }
 
-        #endregion
+#endregion
 
         #region 获取游戏引擎版本
         private object GetGameEngineVersion(string ip,string[] args)
