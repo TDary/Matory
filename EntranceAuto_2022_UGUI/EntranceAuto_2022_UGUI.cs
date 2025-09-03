@@ -86,11 +86,11 @@ namespace Matory
             m_Pro.funMethods.Add("CaptureMemorySnap",TakeMemorySnapShot);
             m_Pro.funMethods.Add("SetCamera", SetCameraPosition);
             m_Pro.funMethods.Add("SetGameObjectState", GameObjectSwitch);
-            m_Pro.funMethods.Add("PerformanceData_Start",SampleDataStart);
-            m_Pro.funMethods.Add("PerformanceData_Stop", SampleDataStop);
+            m_Pro.funMethods.Add("PerformanceData_Start", SampleHotMapDataStart);
+            m_Pro.funMethods.Add("PerformanceData_Stop", SampleHotMapDataStop);
             m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
-            m_Pro.funMethods.Add("Start_Record", StartRecordUIOperate);
-            m_Pro.funMethods.Add("Stop_Record", StopRecordUIOperate);
+            m_Pro.funMethods.Add("Start_UIRecord", StartRecordUIOperate);
+            m_Pro.funMethods.Add("Stop_UIRecord", StopRecordUIOperate);
             m_Pro.funMethods.Add("Start_DTracker", StartTracker);
             m_Pro.funMethods.Add("Set_DTrackerLimit", SetSnapAndMemoryLimit);
 
@@ -1113,14 +1113,14 @@ namespace Matory
         /// 性能数据采集开始
         /// </summary>
         /// <returns></returns>
-        private object SampleDataStart(string ip, string[] args)
+        private object SampleHotMapDataStart(string ip, string[] args)
         {
             if (_mHotmapController == null)
             {
                 _mHotmapController = new HotmapDataController();
                 _mHotmapController.Init();
             }
-            string resFilepath = args[0];
+            string resFilepath = args[0];  // args[0]输出结果路径 args[1]设置采集模式1为每帧采集写入，0为不每帧写，需要自己获取单帧数据
             if (int.TryParse(args[1],out int sampleArg))
             {
                 return _mHotmapController.SampleStart(resFilepath, sampleArg);
@@ -1132,7 +1132,7 @@ namespace Matory
         }
 
         /// <summary>
-        /// 获取单帧当前性能数据
+        /// 获取单帧当前性能数据,在采集模式为0时使用
         /// </summary>
         /// <returns></returns>
         private object GetOneFrameData(string ip, string[] args)
@@ -1145,7 +1145,7 @@ namespace Matory
         /// 性能数据采集结束
         /// </summary>
         /// <returns></returns>
-        private object SampleDataStop(string ip, string[] args)
+        private object SampleHotMapDataStop(string ip, string[] args)
         {
             if (_mHotmapController == null) return "采集对象为空，未开始采集不需要停止";
             return _mHotmapController.SampleStop();
@@ -1275,7 +1275,7 @@ namespace Matory
         {
             try
             {
-                Dictionary<string, bool> modules = JsonMapper.ToObject<Dictionary<string, bool>>(args[1]);
+                Dictionary<string, bool> modules = JsonMapper.ToObject<Dictionary<string, bool>>(args[1]); // {"CPU":"true",...}
                 foreach (var item in modules.Keys)
                 {
                     bool dicVal = false;
