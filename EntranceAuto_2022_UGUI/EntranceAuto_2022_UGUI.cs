@@ -22,6 +22,7 @@ using UnityEngine.EventSystems;
 using Matory.MatoryServer;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using static UnityEditor.Progress;
 
 namespace Matory
 {
@@ -125,10 +126,12 @@ namespace Matory
                         ResData res = null;
                         if (GetMsgPool.TryDequeue(out data))
                         {
+                            bool isHasFun = false;
                             foreach (var item in GetTransDataPool)
                             {
                                 if (item.Value.FuncArgs == data.FuncArgs && item.Value.FuncName == data.FuncName)
                                 {
+                                    isHasFun = true;
                                     var result = m_Pro.RunMethod(item.Key, m_Pro.funMethods, data);
                                     if (result != null)
                                     {
@@ -173,6 +176,30 @@ namespace Matory
                                                 session.SockeClient.Send(msgBuffer);
                                                 break;
                                             }
+                                        }
+                                    }
+                                }
+                            }
+                            if (!isHasFun)
+                            {
+                                foreach (var item in GetTransDataPool)
+                                {
+                                    foreach (var session in socketServer.SessionPool.Values)
+                                    {
+                                        if (session.IP == item.Key)
+                                        {
+                                            JsonWriter jw = new JsonWriter();
+                                            jw.WriteObjectStart();
+                                            jw.WritePropertyName("Code");
+                                            jw.Write(200);
+                                            jw.WritePropertyName("Msg");
+                                            jw.Write(true);
+                                            jw.WritePropertyName("Data");
+                                            jw.Write("There is no this Function.");
+                                            jw.WriteObjectEnd();
+                                            byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                            session.SockeClient.Send(msgBuffer);
+                                            break;
                                         }
                                     }
                                 }
