@@ -1,6 +1,5 @@
 ﻿using Matory.Net;
 using System.Collections.Generic;
-using System.Net;
 using System.Net.NetworkInformation;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,93 +21,102 @@ using UnityEngine.EventSystems;
 using Matory.MatoryServer;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using static UnityEditor.Progress;
 
 namespace Matory
 {
     public class Mato : MonoBehaviour
     {
-        private SocketServer socketServer;
-        private int port = 2666;
-        private bool startGatherMsg = false, isGathering = false, isRecording=false;
-        public MsgProfiler m_Pro;
-        private int frameNum = 0, ProfilerBeginFrame = 0;
-        private int fileNum = 0;
-        private List<string> profilerDataNames;
-        private List<string> profilerDataPaths;
-        private string profilerDataName = "";
-        private string profilerDataPath = "";
-        private GameObject targetObj;
-        private ConcurrentQueue<MsgForSend> SendMsgPool = new ConcurrentQueue<MsgForSend>();
-        private ConcurrentQueue<TransData> GetMsgPool = new ConcurrentQueue<TransData>();
-        private Dictionary<string,TransData> GetTransDataPool = new Dictionary<string,TransData>(20);
-        private Dictionary<string, string> data = new Dictionary<string, string>();
-        private int requestCount = 0, sendCount = 0;
-        private string Profiler_path;
-        private List<string> Collection_item = new List<string>();//存放采集项目
-        private Coroutine ProfileIEnumerator = null;
-        private Coroutine RecordUIOperateCoroutine = null;
-        private string SnapShotFilePath = string.Empty;
-        private HotmapDataController _mHotmapController;
-        private StringBuilder dataJson = new StringBuilder();
-        private Dictionary<string, bool> m_profilerSampleModules = new Dictionary<string, bool>();
+        private SocketServer _socketServer;
+        private readonly int _port = 2666;
+        private bool _startGatherMsg = false, _isGathering = false, _isRecording=false;
+        public MsgProfiler mPro;
+        private int _frameNum = 0, ProfilerBeginFrame = 0;
+        private int _fileNum = 0;
+        private List<string> _profilerDataNames;
+        private List<string> _profilerDataPaths;
+        private string _profilerDataName = "";
+        private string _profilerDataPath = "";
+        private GameObject _targetObj;
+        private readonly ConcurrentQueue<MsgForSend> _sendMsgPool = new ConcurrentQueue<MsgForSend>();
+        private readonly ConcurrentQueue<TransData> _getMsgPool = new ConcurrentQueue<TransData>();
+        private readonly Dictionary<string,TransData> _getTransDataPool = new Dictionary<string,TransData>(20);
+        private readonly Dictionary<string, string> _data = new Dictionary<string, string>();
+        private int _requestCount = 0, _sendCount = 0;
+        private string _profilerPath;
+        private List<string> _collectionItem = new List<string>();//存放采集项目
+        private Coroutine _profileIEnumerator = null;
+        private Coroutine _recordUIOperateCoroutine = null;
+        private string _snapShotFilePath = string.Empty;
+        private HotmapDataController _mHotMapController;
+        private readonly StringBuilder _dataJson = new StringBuilder();
+        private readonly Dictionary<string, bool> _mProfilerSampleModules = new Dictionary<string, bool>();
+
+        // Performance caches
+        private const int MaxMessagesPerFrame = 5;
+        private Canvas[] _mCanvasCache;
+        private float _mCanvasCacheTime;
+        private Dictionary<string, GameObject> _mPathCache = new Dictionary<string, GameObject>();
+        private float _mPathCacheTime;
+        private List<Graphic> _mRecordGraphicCache = new List<Graphic>();
+        private float _mRecordCacheTimestamp;
+        private readonly Dictionary<GameObject, string> _mRecordPathCache = new Dictionary<GameObject, string>();
         #region DMemTracker
         [DllImport("MemTrace.dll", EntryPoint = "InitMemTrace")]
-        public static extern bool InitMemTrace();
+        private static extern bool InitMemTrace();
         [DllImport("MemTrace.dll", EntryPoint = "UpdateMemory")]
-        public static extern void UpdateMemory();
+        private static extern void UpdateMemory();
         [DllImport("MemTrace.dll", EntryPoint = "GetCurrentProcessMemory")]
-        public static extern ulong GetProcessMemory();
+        private static extern ulong GetProcessMemory();
         [DllImport("MemTrace.dll", EntryPoint = "GetCurrentCPUUsage")]
         public static extern double GetCurrentCPUUsage();
-        bool isInit_track = false;
-        public double memoryLimitMB = 2048;
+        private bool _isInitTrack = false;
+        public double memoryLimitMb = 2048;
         #endregion
         public void Init()
         {
             DontDestroyOnLoad(this);
-            m_Pro = new MsgProfiler();
-            m_Pro.funMethods.Add("GetSdkVersion",GetSdkVersion);
-            m_Pro.funMethods.Add("GetGameVersion", GetGameEngineVersion);
-            m_Pro.funMethods.Add("StopConnection",StopConnection);
-            m_Pro.funMethods.Add("Find_Text", FindText);
-            m_Pro.funMethods.Add("Find_AllButton", FindAllButton);
-            m_Pro.funMethods.Add("Set_ProfilerSampleModules", SetProfilerSampleModules);
-            m_Pro.funMethods.Add("Gather_Profiler",GatherProfiler);
-            m_Pro.funMethods.Add("Check_Profiler",CheckProfilerData);
-            m_Pro.funMethods.Add("Get_Hierarchy",GetHierarchy);
-            m_Pro.funMethods.Add("Get_Inspector",GetInspector);
-            m_Pro.funMethods.Add("ClickOne", ClickOneButton);
-            m_Pro.funMethods.Add("GetScreenShot",GetScreenShot);
-            m_Pro.funMethods.Add("Object_Exist",IsObjectExist);
-            m_Pro.funMethods.Add("ClickOneBySimulate", ClickOneSimulateMouse);
-            m_Pro.funMethods.Add("PressOneBySimulate", PressOneSimulateMouse);
-            m_Pro.funMethods.Add("UpOneBySimulate", UpOneSimulateMouse);
-            m_Pro.funMethods.Add("CaptureMemorySnap",TakeMemorySnapShot);
-            m_Pro.funMethods.Add("SetCamera", SetCameraPosition);
-            m_Pro.funMethods.Add("SetGameObjectState", GameObjectSwitch);
-            m_Pro.funMethods.Add("PerformanceData_Start", SampleHotMapDataStart);
-            m_Pro.funMethods.Add("PerformanceData_Stop", SampleHotMapDataStop);
-            m_Pro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
-            m_Pro.funMethods.Add("Start_UIRecord", StartRecordUIOperate);
-            m_Pro.funMethods.Add("Stop_UIRecord", StopRecordUIOperate);
-            m_Pro.funMethods.Add("Start_DTracker", StartTracker);
-            m_Pro.funMethods.Add("Set_DTrackerLimit", SetSnapAndMemoryLimit);
+            mPro = new MsgProfiler();
+            mPro.funMethods.Add("GetSdkVersion",GetSdkVersion);
+            mPro.funMethods.Add("GetGameVersion", GetGameEngineVersion);
+            mPro.funMethods.Add("StopConnection",StopConnection);
+            mPro.funMethods.Add("Find_Text", FindText);
+            mPro.funMethods.Add("Find_AllButton", FindAllButton);
+            mPro.funMethods.Add("Set_ProfilerSampleModules", SetProfilerSampleModules);
+            mPro.funMethods.Add("Gather_Profiler",GatherProfiler);
+            mPro.funMethods.Add("Check_Profiler",CheckProfilerData);
+            mPro.funMethods.Add("Get_Hierarchy",GetHierarchy);
+            mPro.funMethods.Add("Get_Inspector",GetInspector);
+            mPro.funMethods.Add("ClickOne", ClickOneButton);
+            mPro.funMethods.Add("GetScreenShot",GetScreenShot);
+            mPro.funMethods.Add("Object_Exist",IsObjectExist);
+            mPro.funMethods.Add("ClickOneBySimulate", ClickOneSimulateMouse);
+            mPro.funMethods.Add("PressOneBySimulate", PressOneSimulateMouse);
+            mPro.funMethods.Add("UpOneBySimulate", UpOneSimulateMouse);
+            mPro.funMethods.Add("CaptureMemorySnap",TakeMemorySnapShot);
+            mPro.funMethods.Add("SetCamera", SetCameraPosition);
+            mPro.funMethods.Add("SetGameObjectState", GameObjectSwitch);
+            mPro.funMethods.Add("PerformanceData_Start", SampleHotMapDataStart);
+            mPro.funMethods.Add("PerformanceData_Stop", SampleHotMapDataStop);
+            mPro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
+            mPro.funMethods.Add("Start_UIRecord", StartRecordUIOperate);
+            mPro.funMethods.Add("Stop_UIRecord", StopRecordUIOperate);
+            mPro.funMethods.Add("Start_DTracker", StartTracker);
+            mPro.funMethods.Add("Set_DTrackerLimit", SetSnapAndMemoryLimit);
 
             for (int i = 0; i < 5; i++)
             {
-                bool thisport = IsPortInUse(port + i);
-                if (thisport)
+                bool thisPort = IsPortInUse(_port + i);
+                if (thisPort)
                 {
-                    Debug.Log($"This port {port + i} is in used");
+                    Debug.Log($"This port {_port + i} is in used");
                     continue;
                 }
                 else
                 {
-                    socketServer = new SocketServer();
-                    socketServer.start(port + i);    //监听端口号
-                    socketServer.mydelegate = ParseData;
-                    Debug.Log($"Matory is Listen success for {port + i}");
+                    _socketServer = new SocketServer();
+                    _socketServer.start(_port + i);    //监听端口号
+                    _socketServer.mydelegate = ParseData;
+                    Debug.Log($"Matory is Listen success for {_port + i}");
                     break;
                 }
             }
@@ -116,125 +124,111 @@ namespace Matory
 
         void Update()
         {
-            if (requestCount > 0 || sendCount > 0)
+            if (_requestCount > 0 || _sendCount > 0)
             {
-                while (requestCount > 0 || sendCount > 0)
+                for (var i = 0; i < MaxMessagesPerFrame && (_requestCount > 0 || _sendCount > 0); i++)
                 {
-                    if (GetMsgPool.Count != 0)   //处理函数并执行，返回消息给客户端
+                    if (_getMsgPool.Count != 0)   //处理函数并执行，返回消息给客户端
                     {
-                        TransData data = null;
-                        ResData res = null;
-                        if (GetMsgPool.TryDequeue(out data))
+                        if (_getMsgPool.TryDequeue(out var data))
                         {
                             bool isHasFun = false;
-                            foreach (var item in GetTransDataPool)
+                            foreach (var item in _getTransDataPool)
                             {
                                 if (item.Value.FuncArgs == data.FuncArgs && item.Value.FuncName == data.FuncName)
                                 {
                                     isHasFun = true;
-                                    var result = m_Pro.RunMethod(item.Key, m_Pro.funMethods, data);
+                                    var result = mPro.RunMethod(item.Key, mPro.funMethods, data);
                                     if (result != null)
                                     {
                                         string resMsg = result.ToString();
-                                        res = new ResData(200, true, resMsg);
-                                        foreach (var session in socketServer.SessionPool.Values)
+                                        var res = new ResData(200, true, resMsg);
+                                        if (_socketServer.SessionPool.TryGetValue(item.Key, out var session))
                                         {
-                                            if (session.IP == item.Key)
-                                            {
-                                                JsonWriter jw = new JsonWriter();
-                                                jw.WriteObjectStart();
-                                                jw.WritePropertyName("Code");
-                                                jw.Write(res.Code);
-                                                jw.WritePropertyName("Msg");
-                                                jw.Write(res.Msg);
-                                                jw.WritePropertyName("Data");
-                                                jw.Write(res.Data);
-                                                jw.WriteObjectEnd();
-                                                byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-                                                session.SockeClient.Send(msgBuffer);
-                                                break;
-                                            }
+                                            JsonWriter jw = new JsonWriter();
+                                            jw.WriteObjectStart();
+                                            jw.WritePropertyName("Code");
+                                            jw.Write(res.Code);
+                                            jw.WritePropertyName("Msg");
+                                            jw.Write(res.Msg);
+                                            jw.WritePropertyName("Data");
+                                            jw.Write(res.Data);
+                                            jw.WriteObjectEnd();
+                                            var msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                            session.SockeClient.Send(msgBuffer);
                                         }
                                         break;
                                     }
                                     else
                                     {
-                                        foreach (var session in socketServer.SessionPool.Values)
+                                        if (_socketServer.SessionPool.TryGetValue(item.Key, out var session2))
                                         {
-                                            if (session.IP == item.Key)
-                                            {
-                                                JsonWriter jw = new JsonWriter();
-                                                jw.WriteObjectStart();
-                                                jw.WritePropertyName("Code");
-                                                jw.Write(200);
-                                                jw.WritePropertyName("Msg");
-                                                jw.Write(true);
-                                                jw.WritePropertyName("Data");
-                                                jw.Write(result.ToString());
-                                                jw.WriteObjectEnd();
-                                                byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-                                                session.SockeClient.Send(msgBuffer);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (!isHasFun)
-                            {
-                                foreach (var item in GetTransDataPool)
-                                {
-                                    foreach (var session in socketServer.SessionPool.Values)
-                                    {
-                                        if (session.IP == item.Key)
-                                        {
-                                            JsonWriter jw = new JsonWriter();
+                                            var jw = new JsonWriter();
                                             jw.WriteObjectStart();
                                             jw.WritePropertyName("Code");
                                             jw.Write(200);
                                             jw.WritePropertyName("Msg");
                                             jw.Write(true);
                                             jw.WritePropertyName("Data");
-                                            jw.Write("There is no this Function.");
+                                            jw.Write(result?.ToString() ?? "null");
                                             jw.WriteObjectEnd();
-                                            byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
-                                            session.SockeClient.Send(msgBuffer);
-                                            break;
+                                            var msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                            session2.SockeClient.Send(msgBuffer);
                                         }
                                     }
                                 }
                             }
-                            requestCount--;
+                            if (!isHasFun)
+                            {
+                                foreach (var item in _getTransDataPool)
+                                {
+                                    if (_socketServer.SessionPool.TryGetValue(item.Key, out var session3))
+                                    {
+                                        var jw = new JsonWriter();
+                                        jw.WriteObjectStart();
+                                        jw.WritePropertyName("Code");
+                                        jw.Write(200);
+                                        jw.WritePropertyName("Msg");
+                                        jw.Write(true);
+                                        jw.WritePropertyName("Data");
+                                        jw.Write("There is no this Function.");
+                                        jw.WriteObjectEnd();
+                                        var msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                        session3.SockeClient.Send(msgBuffer);
+                                        break;
+                                    }
+                                }
+                            }
+                            _requestCount--;
                         }
                     }
-                    else if (SendMsgPool.Count != 0)   //返回消息给客户端
+                    else if (_sendMsgPool.Count != 0)   //返回消息给客户端
                     {
-                        MsgForSend data = null;
-                        if (SendMsgPool.TryDequeue(out data))
+                        if (_sendMsgPool.TryDequeue(out var data))
                         {
-                            foreach (var session in socketServer.SessionPool.Values)
+                            foreach (var session in _socketServer.SessionPool.Values)
                             {
                                 if (session.IP == data.Ip)
                                 {
-                                    JsonWriter jw = new JsonWriter();
+                                    var jw = new JsonWriter();
                                     jw.WriteObjectStart();
                                     jw.WritePropertyName("Code");
                                     jw.Write(200);
                                     jw.WritePropertyName("Msg");
                                     jw.Write(data.Msg);
                                     jw.WriteObjectEnd();
-                                    byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                                    var msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
                                     session.SockeClient.Send(msgBuffer);
                                     break;
                                 }
                             }
                         }
-                        sendCount--;
+                        _sendCount--;
                     }
                 }
             }
-            if (_mHotmapController != null) _mHotmapController.OnUpdate();
-            if (isInit_track) UpdateMemory();
+            if (_mHotMapController != null) _mHotMapController.OnUpdate();
+            if (_isInitTrack) UpdateMemory();
         }
 
         /// <summary>
@@ -243,11 +237,11 @@ namespace Matory
         /// <param name="msg"></param>
         private void SendMsg(string msg)
         {
-            foreach (var session in socketServer.SessionPool.Values)
+            foreach (var session in _socketServer.SessionPool.Values)
             {
                 if (session.IP != "")
                 {
-                    JsonWriter jw = new JsonWriter();
+                    var jw = new JsonWriter();
                     jw.WriteObjectStart();
                     jw.WritePropertyName("Code");
                     jw.Write(200);
@@ -256,7 +250,7 @@ namespace Matory
                     jw.WritePropertyName("Data");
                     jw.Write(msg);
                     jw.WriteObjectEnd();
-                    byte[] msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
+                    var msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
                     session.SockeClient.Send(msgBuffer);
                 }
             }
@@ -266,12 +260,12 @@ namespace Matory
         {
             TransData data = null;
             var runData = JsonMapper.ToObject<TransData>(msg);
-            if (GetTransDataPool.TryGetValue(ip, out data))
-                GetTransDataPool[ip] = runData;
+            if (_getTransDataPool.TryGetValue(ip, out data))
+                _getTransDataPool[ip] = runData;
             else
-                GetTransDataPool.Add(ip, runData);
-            GetMsgPool.Enqueue(runData);
-            requestCount += 1;
+                _getTransDataPool.Add(ip, runData);
+            _getMsgPool.Enqueue(runData);
+            _requestCount += 1;
         }
 
         /// <summary>
@@ -279,15 +273,15 @@ namespace Matory
         /// </summary>
         /// <param name="port"></param>
         /// <returns></returns>
-        public static bool IsPortInUse(int port)
+        private static bool IsPortInUse(int port)
         {
-            bool isPortInUse = false;
+            var isPortInUse = false;
 
-            IPGlobalProperties ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
-            IPEndPoint[] activeTcpListeners = ipGlobalProperties.GetActiveTcpListeners();
-            IPEndPoint[] activeUdpListeners = ipGlobalProperties.GetActiveUdpListeners();
+            var ipGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+            var activeTcpListeners = ipGlobalProperties.GetActiveTcpListeners();
+            var activeUdpListeners = ipGlobalProperties.GetActiveUdpListeners();
 
-            foreach (IPEndPoint endPoint in activeTcpListeners)
+            foreach (var endPoint in activeTcpListeners)
             {
                 if (endPoint.Port == port)
                 {
@@ -298,7 +292,7 @@ namespace Matory
 
             if (!isPortInUse)
             {
-                foreach (IPEndPoint endPoint in activeUdpListeners)
+                foreach (var endPoint in activeUdpListeners)
                 {
                     if (endPoint.Port == port)
                     {
@@ -316,18 +310,18 @@ namespace Matory
         /// <returns></returns>
         private object StopConnection(string ip,string[] args)
         {
-            if (socketServer != null)
+            if (_socketServer != null)
             {
-                socketServer.stop();
+                _socketServer.stop();
             }
             return null;
         }
 
-        public static UnityEngine.Object FindObjectFromInstanceID(int iid)
+        private static UnityEngine.Object FindObjectFromInstanceID(int id)
         {
             return (UnityEngine.Object)typeof(UnityEngine.Object)
                     .GetMethod("FindObjectFromInstanceID", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
-                    .Invoke(null, new object[] { iid });
+                    .Invoke(null, new object[] { id });
         }
 
         #region 获取Unity面板数据
@@ -335,8 +329,8 @@ namespace Matory
         {
             if (component != null && !string.IsNullOrEmpty(propertyName))
             {
-                PropertyInfo _findedPropertyInfo = component.GetType().GetProperty(propertyName);
-                return (_findedPropertyInfo != null);
+                var findPropertyInfo = component.GetType().GetProperty(propertyName);
+                return (findPropertyInfo != null);
             }
             return false;
         }
@@ -344,10 +338,10 @@ namespace Matory
         {
             if (component != null && !string.IsNullOrEmpty(propertyName))
             {
-                PropertyInfo propertyInfo = component.GetType().GetProperty(propertyName);
+                var propertyInfo = component.GetType().GetProperty(propertyName);
                 if (propertyInfo != null)
                 {
-                    MethodInfo mi = propertyInfo.GetGetMethod(true);
+                    var mi = propertyInfo.GetGetMethod(true);
                     if (mi != null)
                     {
                         return (T)mi.Invoke(component, null);
@@ -358,23 +352,23 @@ namespace Matory
             }
             return default(T);
         }
-        private void GetComponentPropertys(Component component, JsonWriter jw)
+        private static void GetComponentProperty(Component component, JsonWriter jw)
         {
             try
             {
-                PropertyInfo[] propertyInfos = component.GetType().GetProperties(BindingFlags.Public |
-                                                                                BindingFlags.Instance |
-                                                                                BindingFlags.SetProperty |
-                                                                                BindingFlags.GetProperty);
+                var propertyInfos = component.GetType().GetProperties(BindingFlags.Public |
+                                                                      BindingFlags.Instance |
+                                                                      BindingFlags.SetProperty |
+                                                                      BindingFlags.GetProperty);
 
-                FieldInfo[] fieldInfos = component.GetType().GetFields(BindingFlags.Public |
-                                                                    BindingFlags.Instance |
-                                                                    BindingFlags.SetField |
-                                                                    BindingFlags.GetField);
+                var fieldInfos = component.GetType().GetFields(BindingFlags.Public |
+                                                               BindingFlags.Instance |
+                                                               BindingFlags.SetField |
+                                                               BindingFlags.GetField);
 
-                for (int i = 0; i < propertyInfos.Length; ++i)
+                for (var i = 0; i < propertyInfos.Length; ++i)
                 {
-                    PropertyInfo pi = propertyInfos[i];
+                    var pi = propertyInfos[i];
 
                     //Debug.LogError("Property:" + pi.Name);
 
@@ -386,7 +380,7 @@ namespace Matory
                             continue;
                         }
 
-                        System.Object obj = pi.GetValue(component, null);
+                        var obj = pi.GetValue(component, null);
                         if (obj is System.Collections.ICollection)
                         {
                             continue;
@@ -414,9 +408,9 @@ namespace Matory
                     }
                 }
 
-                for (int i = 0; i < fieldInfos.Length; ++i)
+                for (var i = 0; i < fieldInfos.Length; ++i)
                 {
-                    FieldInfo fi = fieldInfos[i];
+                    var fi = fieldInfos[i];
                     //Debug.LogError("Field:" + fi.Name);
 
                     if (fi.GetValue(component) != null)
@@ -441,7 +435,7 @@ namespace Matory
                 Debug.Log(ex);
             }
         }
-        void WriteJsonData(JsonWriter jw, Component component)
+        private void WriteJsonData(JsonWriter jw, Component component)
         {
             GameRunTimeDataSet.AddComponent(component);
 
@@ -462,7 +456,7 @@ namespace Matory
             jw.WritePropertyName("properties");
             jw.WriteArrayStart();
 
-            GetComponentPropertys(component, jw);
+            GetComponentProperty(component, jw);
 
             jw.WriteArrayEnd();
 
@@ -472,13 +466,13 @@ namespace Matory
         {
             try
             {
-                int objId = int.Parse(args[0]);
+                var objId = int.Parse(args[0]);
 
                 GameObject obj = null;
 
                 if (GameRunTimeDataSet.TryGetGameObject(objId, out obj))
                 {
-                    JsonWriter jw = new JsonWriter();
+                    var jw = new JsonWriter();
 
                     jw.WriteObjectStart();
 
@@ -501,8 +495,8 @@ namespace Matory
 
                     jw.WriteArrayStart();
 
-                    Component[] components = obj.GetComponents<Component>();
-                    for (int j = 0; j < components.Length; ++j)
+                    var components = obj.GetComponents<Component>();
+                    for (var j = 0; j < components.Length; ++j)
                     {
                         WriteJsonData(jw, components[j]);
                     }
@@ -523,7 +517,7 @@ namespace Matory
                 return e.ToString();
             }
         }
-        private void WriteJsonData(JsonWriter jw, GameObject go)
+        private static void WriteJsonData(JsonWriter jw, GameObject go)
         {
             jw.WriteObjectStart();
 
@@ -542,7 +536,7 @@ namespace Matory
 
                 for (int i = 0; i < go.transform.childCount; ++i)
                 {
-                    GameObject child = go.transform.GetChild(i).gameObject;
+                    var child = go.transform.GetChild(i).gameObject;
                     WriteJsonData(jw, child);
                 }
 
@@ -551,7 +545,7 @@ namespace Matory
 
             jw.WriteObjectEnd();
         }
-        private object GetHierarchy(string ip, string[] args)
+        private static object GetHierarchy(string ip, string[] args)
         {
             try
             {
@@ -573,20 +567,18 @@ namespace Matory
 
                 jsonWriter.WriteArrayStart();
 
-                List<GameObject> _RootGameObjects = new List<GameObject>();
-                Transform[] arrTransforms = Transform.FindObjectsOfType<Transform>();
-                for (int i = 0; i < arrTransforms.Length; ++i)
+                var rootGameObjects = new List<GameObject>();
+                for (var i = 0; i < SceneManager.sceneCount; i++)
                 {
-                    Transform tran = arrTransforms[i];
-                    if (tran.parent == null)
+                    foreach (var rootGo in SceneManager.GetSceneAt(i).GetRootGameObjects())
                     {
-                        _RootGameObjects.Add(tran.gameObject);
+                        rootGameObjects.Add(rootGo);
                     }
                 }
 
-                for (int i = 0; i < _RootGameObjects.Count; ++i)
+                for (var i = 0; i < rootGameObjects.Count; ++i)
                 {
-                    WriteJsonData(jsonWriter, _RootGameObjects[i]);
+                    WriteJsonData(jsonWriter, rootGameObjects[i]);
                 }
 
                 jsonWriter.WriteArrayEnd();
@@ -606,7 +598,7 @@ namespace Matory
         #endregion
 
         #region 录制客户端UI操作
-        IEnumerator RecordUIClick(string current_ip)
+        private IEnumerator RecordUIClick(string currentIp)
         {
             float quitTime = 0, maxQuitTime = 7;
             float lastTime = Time.unscaledTime, nowTime = Time.unscaledTime;
@@ -616,40 +608,48 @@ namespace Matory
             string textVaule;
             while (true)
             {
-
-                if(!socketServer.IsInConnecting(current_ip))
+                if(!_socketServer.IsInConnecting(currentIp))
                 {
                     Debug.LogWarning("由于客户端断开链接，终止录制----");
-                    isRecording = false;
-                    StopCoroutine(RecordUIOperateCoroutine);
-                    RecordUIOperateCoroutine = null;
+                    _isRecording = false;
+                    StopCoroutine(_recordUIOperateCoroutine);
+                    _recordUIOperateCoroutine = null;
                     break;
                 }
 
-                if (isRecording)
+                if (_isRecording)
                 {
                     if (Input.GetMouseButton(0))
                     {
                         quitTime += Time.unscaledDeltaTime;
-                        List<Graphic> allgraphics = FindAllGameObject<Graphic>();
-                        Vector2 mousePos = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
-                        dataJson.Clear();
-                        dataJson.Append("[");
-                        foreach (var graphic in allgraphics)
+                        if (Time.unscaledTime - _mRecordCacheTimestamp > 0.25f)
                         {
-                            RectTransform rect = graphic.gameObject.GetComponent<RectTransform>();
-                            Vector3[] targetPoint = GetScreenCoordinates(rect);
-                            if (targetPoint[0].x < mousePos.x && targetPoint[2].x > mousePos.x && targetPoint[0].y < mousePos.y && targetPoint[2].y > mousePos.y)
+                            _mRecordGraphicCache = FindAllGameObject<Graphic>();
+                            _mRecordCacheTimestamp = Time.unscaledTime;
+                            _mRecordPathCache.Clear();
+                            foreach (var g in _mRecordGraphicCache)
                             {
-                                string path = GetGameObjectPath(rect.gameObject);
-                                dataJson.Append("{\"path\":\"" + path + "\",\"id\":\"" + rect.gameObject.GetInstanceID().ToString() + "\"},");
+                                _mRecordPathCache[g.gameObject] = GetGameObjectPath(g.gameObject);
                             }
                         }
-                        if (dataJson.Length > 1)
-                            dataJson.Remove(dataJson.Length - 1, 1);
-                        dataJson.Append("]");
+                        var mousePos = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+                        _dataJson.Clear();
+                        _dataJson.Append("[");
+                        foreach (var graphic in _mRecordGraphicCache)
+                        {
+                            var rect = graphic.gameObject.GetComponent<RectTransform>();
+                            var targetPoint = GetScreenCoordinates(rect);
+                            if (targetPoint[0].x < mousePos.x && targetPoint[2].x > mousePos.x && targetPoint[0].y < mousePos.y && targetPoint[2].y > mousePos.y)
+                            {
+                                string path = _mRecordPathCache[graphic.gameObject];
+                                _dataJson.Append("{\"path\":\"" + path + "\",\"id\":\"" + rect.gameObject.GetInstanceID().ToString() + "\"},");
+                            }
+                        }
+                        if (_dataJson.Length > 1)
+                            _dataJson.Remove(_dataJson.Length - 1, 1);
+                        _dataJson.Append("]");
                         //发送给上层python端数据
-                        SendMsg(dataJson.ToString());
+                        SendMsg(_dataJson.ToString());
                     }
                     else
                     {
@@ -661,8 +661,8 @@ namespace Matory
                         Debug.LogWarning("Close record ui operation.");
                         //发送给上层python端数据
                         SendMsg("Close record ui operation.");
-                        StopCoroutine(RecordUIOperateCoroutine);
-                        RecordUIOperateCoroutine = null;
+                        StopCoroutine(_recordUIOperateCoroutine);
+                        _recordUIOperateCoroutine = null;
                         yield break;
                     }
 
@@ -670,23 +670,23 @@ namespace Matory
                     {
                         if(selectable!=null && selectable is IDragHandler && Input.GetMouseButtonUp(0))
                         {
-                            data.Add("name", GetGameObjectPath(selectable.gameObject));
-                            data.Add("type", selectable.GetType().ToString());
-                            data.Add("end position", Input.mousePosition.ToString());
-                            data.Add("time", (nowTime - lastTime).ToString());
-                            SendMsg(JsonMapper.ToJson(data));
-                            data.Clear();
+                            _data.Add("name", GetGameObjectPath(selectable.gameObject));
+                            _data.Add("type", selectable.GetType().ToString());
+                            _data.Add("end position", Input.mousePosition.ToString());
+                            _data.Add("time", (nowTime - lastTime).ToString());
+                            SendMsg(JsonMapper.ToJson(_data));
+                            _data.Clear();
                             selectable = null;
                         }
                         if (Input.GetMouseButtonDown(0))
                         {
                             Vector2 pos = Input.mousePosition;
-                            data.Add("press position", pos.ToString());
-                            float percentX = pos.x / Screen.width;
-                            float percentY = pos.y / Screen.height;
-                            data.Add("percent position", $"({percentX},{percentY})");
-                            Touch touch = new Touch { position = pos };
-                            PointerEventData pointerEventData = MockUpPointerInputModule.GetPointerEventData(touch);
+                            _data.Add("press position", pos.ToString());
+                            var percentX = pos.x / Screen.width;
+                            var percentY = pos.y / Screen.height;
+                            _data.Add("percent position", $"({percentX},{percentY})");
+                            var touch = new Touch { position = pos };
+                            var pointerEventData = MockUpPointerInputModule.GetPointerEventData(touch);
                             if (pointerEventData.pointerPress != null)
                                 lastPressGameObject = pointerEventData.pointerPress;
                         }
@@ -713,12 +713,12 @@ namespace Matory
                                     {
                                         textVaule = inputField.text;
 
-                                        data.Add("name", GetGameObjectPath(lastSelectedGameObject));
-                                        data.Add("type", inputField.GetType().ToString());
-                                        data.Add("value", textVaule);
-                                        data.Add("time", (nowTime - lastTime).ToString());
-                                        SendMsg(JsonMapper.ToJson(data));
-                                        data.Clear();
+                                        _data.Add("name", GetGameObjectPath(lastSelectedGameObject));
+                                        _data.Add("type", inputField.GetType().ToString());
+                                        _data.Add("value", textVaule);
+                                        _data.Add("time", (nowTime - lastTime).ToString());
+                                        SendMsg(JsonMapper.ToJson(_data));
+                                        _data.Clear();
                                     }
                                 }
                                 lastSelectedGameObject = flagGameObject;
@@ -727,20 +727,20 @@ namespace Matory
                                 selectable = flagGameObject.GetComponent<Selectable>();
                             else 
                                 selectable = null;
-                            if (socketServer.IsInConnecting(current_ip))
+                            if (_socketServer.IsInConnecting(currentIp))
                             {
-                                data.Add("name", GetGameObjectPath(flagGameObject));
+                                _data.Add("name", GetGameObjectPath(flagGameObject));
                                 if (selectable)
                                 {
-                                    data.Add("type", selectable.GetType().ToString());
+                                    _data.Add("type", selectable.GetType().ToString());
                                     if(selectable is IDragHandler && Input.GetMouseButtonDown(0))
                                     {
-                                        data.Add("start position", Input.mousePosition.ToString());
+                                        _data.Add("start position", Input.mousePosition.ToString());
                                     }
                                 }
-                                data.Add("time", (nowTime - lastTime).ToString());
-                                SendMsg(JsonMapper.ToJson(data));
-                                data.Clear();
+                                _data.Add("time", (nowTime - lastTime).ToString());
+                                SendMsg(JsonMapper.ToJson(_data));
+                                _data.Clear();
                             }
                             if (!(selectable is InputField))
                             {
@@ -749,10 +749,10 @@ namespace Matory
                                 flagGameObject = null;
                             }
                         }
-                        if(data.Count > 0)
+                        if(_data.Count > 0)
                         {
-                            SendMsg(JsonMapper.ToJson(data));
-                            data.Clear();
+                            SendMsg(JsonMapper.ToJson(_data));
+                            _data.Clear();
                         }
                     }
                     catch(Exception ex)
@@ -768,10 +768,10 @@ namespace Matory
         {
             try
             {
-                if (!isRecording)
+                if (!_isRecording)
                 {
-                    isRecording = true;
-                    RecordUIOperateCoroutine = StartCoroutine(RecordUIClick(ip));
+                    _isRecording = true;
+                    _recordUIOperateCoroutine = StartCoroutine(RecordUIClick(ip));
                 }
                 else
                 {
@@ -789,34 +789,34 @@ namespace Matory
         {
             if (args.Length > 1)
             {
-                SnapShotFilePath = args[0];  // snapFilePath
-                memoryLimitMB = double.Parse(args[1]); // memoryLimitMB
-                Debug.Log($"Set snap path {SnapShotFilePath} and memory limit {memoryLimitMB}MB.");
-                return "Set snap and memoryLimit sucessful.";
+                _snapShotFilePath = args[0];  // snapFilePath
+                memoryLimitMb = double.Parse(args[1]); // memoryLimitMB
+                Debug.Log($"Set snap path {_snapShotFilePath} and memory limit {memoryLimitMb}MB.");
+                return "Set snap and memoryLimit sucessfull.";
             }
             return "Set snap and memoryLimit failed.";
         }
 
         private object StartTracker(string ip, string[] args)
         {
-            if (isInit_track)
+            if (_isInitTrack)
             {
                 StartCoroutine(MonitorLogic());
                 return "Tracker has been started.";
             }
             if (InitMemTrace())
             {
-                isInit_track = true;
+                _isInitTrack = true;
                 StartCoroutine(MonitorLogic());
-                return "Start Tracker sucessful.";
+                return "Start Tracker sucessfull.";
             }
             return "Start Tracker failed.";
         }
 
         private object StopRecordUIOperate(string ip, string[] args)
         {
-            isRecording = false;
-            StopCoroutine(RecordUIOperateCoroutine);
+            _isRecording = false;
+            StopCoroutine(_recordUIOperateCoroutine);
             return "ok";
         }
 
@@ -828,17 +828,17 @@ namespace Matory
 
         IEnumerator MonitorLogic()
         {
-            if (memoryLimitMB == 0)
+            if (memoryLimitMb == 0)
                 yield return null;
-            WaitForSeconds waitSecond = new WaitForSeconds(1f);
+            var waitSecond = new WaitForSeconds(1f);
             Debug.Log("开始进行内存监控——");
             while (true)
             {
-                if (ToMBMemory(GetProcessMemory()) >= memoryLimitMB)
+                if (ToMBMemory(GetProcessMemory()) >= memoryLimitMb)
                 {
-                    if (string.IsNullOrEmpty(SnapShotFilePath))
+                    if (string.IsNullOrEmpty(_snapShotFilePath))
                     {
-                        SnapShotFilePath = Path.Combine(Application.persistentDataPath, DateTimeOffset.Now.ToUnixTimeSeconds().ToString(), ".snap");
+                        _snapShotFilePath = Path.Combine(Application.persistentDataPath, DateTimeOffset.Now.ToUnixTimeSeconds().ToString(), ".snap");
                     }
                     else
                     {
@@ -853,7 +853,7 @@ namespace Matory
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
 #else
-                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(SnapShotFilePath, MemorySnapShotCallBack,
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(_snapShotFilePath, MemorySnapShotCallBack,
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
@@ -865,7 +865,7 @@ namespace Matory
             }
         }
 
-        class Node
+        private class Node
         {
             public string path;
 
@@ -875,7 +875,7 @@ namespace Matory
 
         private List<T> FindAllGameObject<T>()
         {
-            List<T> gameObjects = new List<T>();
+            var gameObjects = new List<T>();
 
             Action<Node> action = n =>
             {
@@ -891,17 +891,17 @@ namespace Matory
 
         private void FindAllGameObject(Action<Node> action)
         {
-            for (int i = 0; i < SceneManager.sceneCount; i++)
+            for (var i = 0; i < SceneManager.sceneCount; i++)
             {
-                foreach (GameObject obj in SceneManager.GetSceneAt(i).GetRootGameObjects())
+                foreach (var obj in SceneManager.GetSceneAt(i).GetRootGameObjects())
                 {
                     try
                     {
                         FindAllObjectFromParent(obj, GetGameObjectPath(obj), action);
                     }
-                    catch
+                    catch(Exception exception)
                     {
-
+                        Debug.Log(exception.Message);
                     }
                 }
             }
@@ -910,18 +910,18 @@ namespace Matory
             {
                 temp = new GameObject();
                 DontDestroyOnLoad(temp);
-                Scene dontDestroyOnLoad = temp.scene;
+                var dontDestroyOnLoad = temp.scene;
                 DestroyImmediate(temp);
                 temp = null;
-                foreach (GameObject obj in dontDestroyOnLoad.GetRootGameObjects())
+                foreach (var obj in dontDestroyOnLoad.GetRootGameObjects())
                 {
                     try
                     {
                         FindAllObjectFromParent(obj, GetGameObjectPath(obj), action);
                     }
-                    catch
+                    catch(Exception exception)
                     {
-
+                        Debug.Log(exception.Message);
                     }
                 }
             }
@@ -935,8 +935,8 @@ namespace Matory
         private string GetGameObjectPath(GameObject obj)
         {
             if (obj == null) return "null";
-            string path = "/" + obj.name;
-            Transform parentTransform = obj.transform.parent;
+            var path = "/" + obj.name;
+            var parentTransform = obj.transform.parent;
             while (parentTransform != null)
             {
                 path = "/" + parentTransform.name + path;
@@ -954,26 +954,24 @@ namespace Matory
         private void FindAllObjectFromParent(GameObject parent, string parentPath, Action<Node> each = null, bool isActive = false)
         {
             if (parent == null || (isActive && !parent.activeInHierarchy)) throw new Exception(Error.NotFoundMessage);
-            Node root = new Node()
+            var root = new Node()
             {
                 path = parentPath,
                 obj = parent,
             };
-            List<Node> nodes = new List<Node>();
+            var nodes = new List<Node>();
             nodes.Add(root);
-            int index = 0;
-            Transform p;
-            Node now;
+            var index = 0;
             while (index != nodes.Count)
             {
-                now = nodes[index];
-                p = now.obj.transform;
-                foreach (Transform transform in p)
+                var now = nodes[index];
+                var p = now.obj.transform;
+                foreach (Transform transForm in p)
                 {
-                    Node temp = new Node()
+                    var temp = new Node()
                     {
-                        path = now.path + "/" + transform.name,
-                        obj = transform.gameObject,
+                        path = now.path + "/" + transForm.name,
+                        obj = transForm.gameObject,
                     };
                     nodes.Add(temp);
                     if (each != null)
@@ -990,7 +988,7 @@ namespace Matory
         /// </summary>
         /// <param name="uiElement">目标RectTransform</param>
         /// <returns></returns>
-        private Vector3[] GetScreenCoordinates(RectTransform uiElement)
+        private static Vector3[] GetScreenCoordinates(RectTransform uiElement)
         {
             var worldCorners = new Vector3[4];
             var screenCorners = new Vector3[4];
@@ -1005,7 +1003,7 @@ namespace Matory
                 camera = Camera.main;
             if (camera != null && camera != Camera.main)
             {
-                for (int i = 0; i < 4; i++)
+                for (var i = 0; i < 4; i++)
                 {
                     screenCorners[i] = RectTransformUtility.WorldToScreenPoint(camera, worldCorners[i]);
                 }
@@ -1040,27 +1038,27 @@ namespace Matory
         #region 检查profilerdata逻辑
         private string GetProfileData()
         {
-            JsonWriter jw = new JsonWriter();
+            var jw = new JsonWriter();
 
             jw.WriteArrayStart();
 
-            for (int i = 0; i < profilerDataNames.Count; ++i)
+            for (var i = 0; i < _profilerDataNames.Count; ++i)
             {
                 jw.WriteObjectStart();
 
                 jw.WritePropertyName("path");//写入属性名称（'路径'）
-                jw.Write(profilerDataPaths[i]);
+                jw.Write(_profilerDataPaths[i]);
 
                 jw.WritePropertyName("name");
-                jw.Write(profilerDataNames[i]);
+                jw.Write(_profilerDataNames[i]);
 
                 jw.WriteObjectEnd();
             }
 
             jw.WriteArrayEnd();
 
-            profilerDataNames.Clear();
-            profilerDataPaths.Clear();
+            _profilerDataNames.Clear();
+            _profilerDataPaths.Clear();
 
             return jw.ToString();
         }
@@ -1068,9 +1066,9 @@ namespace Matory
         {
             try
             {
-                JsonWriter jw = new JsonWriter();
+                var jw = new JsonWriter();
                 jw.WriteObjectStart();
-                if (Collection_item.Contains("profiler_gather"))
+                if (_collectionItem.Contains("profiler_gather"))
                 {
                     jw.WritePropertyName("profiler_gather");
                     jw.Write(GetProfileData());
@@ -1089,12 +1087,12 @@ namespace Matory
         #region 采集UnityProfilerData逻辑
         private void InitProfiler()
         {
-            frameNum = 0;
-            fileNum = 0;
-            isGathering = false;
+            _frameNum = 0;
+            _fileNum = 0;
+            _isGathering = false;
 
-            profilerDataNames = new List<string>();
-            profilerDataPaths = new List<string>();
+            _profilerDataNames = new List<string>();
+            _profilerDataPaths = new List<string>();
         }
 
         /// <summary>
@@ -1107,15 +1105,15 @@ namespace Matory
         {
             var position = args[0].Split(',');
             var rotation = args[1].Split(',');
-            float position_x = float.Parse(position[0],CultureInfo.InvariantCulture);
-            float position_y = float.Parse(position[1], CultureInfo.InvariantCulture);
-            float position_z = float.Parse(position[2], CultureInfo.InvariantCulture);
-            float rotate_x = float.Parse(rotation[0], CultureInfo.InvariantCulture);
-            float rotate_y = float.Parse(rotation[1], CultureInfo.InvariantCulture);
-            float rotate_z = float.Parse(rotation[2], CultureInfo.InvariantCulture);
-            Vector3 changePosition = new Vector3(position_x, position_y, position_z);
+            var positionX = float.Parse(position[0],CultureInfo.InvariantCulture);
+            var positionY = float.Parse(position[1], CultureInfo.InvariantCulture);
+            var positionZ = float.Parse(position[2], CultureInfo.InvariantCulture);
+            var rotateX = float.Parse(rotation[0], CultureInfo.InvariantCulture);
+            var rotateY = float.Parse(rotation[1], CultureInfo.InvariantCulture);
+            var rotateZ = float.Parse(rotation[2], CultureInfo.InvariantCulture);
+            var changePosition = new Vector3(positionX, positionY, positionZ);
             Camera.main.transform.position = changePosition;
-            Camera.main.transform.rotation = Quaternion.Euler(rotate_x, rotate_y, rotate_z);
+            Camera.main.transform.rotation = Quaternion.Euler(rotateX, rotateY, rotateZ);
             return "ok";
         }
 
@@ -1125,7 +1123,7 @@ namespace Matory
         /// <param name="ip"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        private object GameObjectSwitch(string ip, string[] args)
+        private static object GameObjectSwitch(string ip, string[] args)
         {
             var go = GameObject.Find(args[0]);
             if(bool.TryParse(args[1],out bool val))
@@ -1142,15 +1140,15 @@ namespace Matory
         /// <returns></returns>
         private object SampleHotMapDataStart(string ip, string[] args)
         {
-            if (_mHotmapController == null)
+            if (_mHotMapController == null)
             {
-                _mHotmapController = new HotmapDataController();
-                _mHotmapController.Init();
+                _mHotMapController = new HotmapDataController();
+                _mHotMapController.Init();
             }
-            string resFilepath = args[0];  // args[0]输出结果路径 args[1]设置采集模式1为每帧采集写入，0为不每帧写，需要自己获取单帧数据
+            var resFilepath = args[0];  // args[0]输出结果路径 args[1]设置采集模式1为每帧采集写入，0为不每帧写，需要自己获取单帧数据
             if (int.TryParse(args[1],out int sampleArg))
             {
-                return _mHotmapController.SampleStart(resFilepath, sampleArg);
+                return _mHotMapController.SampleStart(resFilepath, sampleArg);
             }
             else
             {
@@ -1164,8 +1162,8 @@ namespace Matory
         /// <returns></returns>
         private object GetOneFrameData(string ip, string[] args)
         {
-            if (_mHotmapController == null) return "采集对象为空，无法获取数据";
-            return _mHotmapController.GetOnePerformanceData();
+            if (_mHotMapController == null) return "采集对象为空，无法获取数据";
+            return _mHotMapController.GetOnePerformanceData();
         }
 
         /// <summary>
@@ -1174,8 +1172,8 @@ namespace Matory
         /// <returns></returns>
         private object SampleHotMapDataStop(string ip, string[] args)
         {
-            if (_mHotmapController == null) return "采集对象为空，未开始采集不需要停止";
-            return _mHotmapController.SampleStop();
+            if (_mHotMapController == null) return "采集对象为空，未开始采集不需要停止";
+            return _mHotMapController.SampleStop();
         }
 
         /// <summary>
@@ -1185,7 +1183,7 @@ namespace Matory
         /// <returns></returns>
         private object GatherProfiler(string ip, string[] args)
         {
-            Dictionary<string, bool> response = new Dictionary<string, bool> { { "DebugBuild", true }, { "code", true } ,{ "profiler_gather",false } };
+            var response = new Dictionary<string, bool> { { "DebugBuild", true }, { "code", true } ,{ "profiler_gather",false } };
             if (!Debug.isDebugBuild)
             {
                 Debug.LogError("Current game is not a development build.");
@@ -1193,44 +1191,44 @@ namespace Matory
                 return JsonMapper.ToJson(response);
             }
 
-            foreach(string arg in args)
+            foreach(var arg in args)
             {
                 Debug.Log($"MatorySDK Profiler arg: {arg}");
             }
 
             try
             {
-                string parameter = args[1];
+                var parameter = args[1];
 
                 if(parameter == "1")
                 {
                     //开始采集
-                    Dictionary<string, string> Dicargs = JsonMapper.ToObject<Dictionary<string, string>>(args[2]);//解析参数案例
-                    Dictionary<string, string> Diccollection = JsonMapper.ToObject<Dictionary<string, string>>(Dicargs["collection"]);
-                    Collection_item = Diccollection.Keys.ToList<string>();
-                    Dictionary<string, string> Dicdata = JsonMapper.ToObject<Dictionary<string, string>>(Dicargs["data"]);
+                    var dicArgs = JsonMapper.ToObject<Dictionary<string, string>>(args[2]);//解析参数案例
+                    var dicCollection = JsonMapper.ToObject<Dictionary<string, string>>(dicArgs["collection"]);
+                    _collectionItem = dicCollection.Keys.ToList<string>();
+                    var dicData = JsonMapper.ToObject<Dictionary<string, string>>(dicArgs["data"]);
 
                     //深度profiler采集
-                    if(ProfileIEnumerator == null && Collection_item.Contains("profiler_gather"))
+                    if(_profileIEnumerator == null && _collectionItem.Contains("profiler_gather"))
                     {
-                        Profiler_path = Application.persistentDataPath;
-                        if (Dicdata.ContainsKey("path"))
+                        _profilerPath = Application.persistentDataPath;
+                        if (dicData.ContainsKey("path"))
                         {
-                            if (!string.IsNullOrEmpty(Dicdata["path"]))
+                            if (!string.IsNullOrEmpty(dicData["path"]))
                             {
-                                Profiler_path = Dicdata["path"];
+                                _profilerPath = dicData["path"];
                                 //判断下文件夹是否存在，不存在就创建一下
-                                if(!Directory.Exists(Profiler_path))    
-                                    Directory.CreateDirectory(Profiler_path);
+                                if(!Directory.Exists(_profilerPath))    
+                                    Directory.CreateDirectory(_profilerPath);
                             }
                         }
-                        startGatherMsg = true;
-                        ProfileIEnumerator = StartCoroutine(StartGatherProfiler(ip));
+                        _startGatherMsg = true;
+                        _profileIEnumerator = StartCoroutine(StartGatherProfiler(ip));
                         response["profiler_gather"] = true;
                     }
                     else
                     {
-                        if (Collection_item.Contains("profiler_gather"))
+                        if (_collectionItem.Contains("profiler_gather"))
                         {
                             response["profiler_gather"] = false;
                         }
@@ -1239,19 +1237,19 @@ namespace Matory
                 else if(parameter == "0")
                 {
                     //结束采集
-                    if(ProfileIEnumerator != null && Collection_item.Contains("profiler_gather"))
+                    if(_profileIEnumerator != null && _collectionItem.Contains("profiler_gather"))
                     {
-                        if (startGatherMsg)
+                        if (_startGatherMsg)
                         {
-                            startGatherMsg = false;
+                            _startGatherMsg = false;
                             EndGather();
                         }
-                        StopCoroutine(ProfileIEnumerator);
+                        StopCoroutine(_profileIEnumerator);
                         response["profiler_gather"] = true;
                     }
                     else
                     {
-                        if (Collection_item.Contains("profiler_gather"))
+                        if (_collectionItem.Contains("profiler_gather"))
                         {
                             response["profiler_gather"] = false;
                         }
@@ -1267,29 +1265,29 @@ namespace Matory
             return JsonMapper.ToJson(response);
         }
 
-        private IEnumerator StartGatherProfiler(string current_ip)
+        private IEnumerator StartGatherProfiler(string currentIp)
         {
             InitProfiler();
-            while (startGatherMsg)
+            while (_startGatherMsg)
             {
-                if (isGathering)
+                if (_isGathering)
                 {
-                    frameNum++;
-                    if (frameNum >= 300)
+                    _frameNum++;
+                    if (_frameNum >= 300)
                     {
                         EndGather();
-                        fileNum++;
-                        frameNum = 0;
-                        isGathering = false;
+                        _fileNum++;
+                        _frameNum = 0;
+                        _isGathering = false;
                     }
                 }
                 else
                 {
-                    BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + fileNum);
-                    isGathering = true;
-                    frameNum++;
+                    BeginGather("ProfilerGather-" + DateTime.Now.ToString(format: "yyyy-MM-dd-HH-mm-ss") + "-" + _fileNum);
+                    _isGathering = true;
+                    _frameNum++;
                 }
-                if (!socketServer.IsInConnecting(current_ip))
+                if (!_socketServer.IsInConnecting(currentIp))
                 {
                     Debug.LogWarning("由于Socket断开链接，终止数据采集----");
                     break;
@@ -1302,24 +1300,33 @@ namespace Matory
         {
             try
             {
-                Dictionary<string, bool> modules = JsonMapper.ToObject<Dictionary<string, bool>>(args[1]); // {"CPU":"true",...}
+                var modules = JsonMapper.ToObject<Dictionary<string, bool>>(args[1]); // {"CPU":"true",...}
                 foreach (var item in modules.Keys)
                 {
-                    bool dicVal = false;
-                    if (m_profilerSampleModules.TryGetValue(item, out dicVal))
-                        m_profilerSampleModules[item] = dicVal;
+                    if (_mProfilerSampleModules.TryGetValue(item, out var dicVal))
+                        _mProfilerSampleModules[item] = dicVal;
                     else
-                        m_profilerSampleModules.Add(item, modules[item]);
+                        _mProfilerSampleModules.Add(item, modules[item]);
                 }
                 return "SetSampleModule successful!";
             }
-           catch(Exception ex)
+            catch(Exception ex)
             {
                 return ex.ToString();
             }
         }
 
-        private void BeginProfilerModules(Dictionary<string,bool> modules)
+        private Canvas[] GetCanvasCache()
+        {
+            if (_mCanvasCache == null || Time.time - _mCanvasCacheTime > 1f)
+            {
+                _mCanvasCache = FindObjectsOfType<Canvas>();
+                _mCanvasCacheTime = Time.time;
+            }
+            return _mCanvasCache;
+        }
+
+        private static void BeginProfilerModules(Dictionary<string,bool> modules)
         {
             if (modules.Count < 1)  //未设置采集模块时将其他模块关闭，只开启CPU模块函数相关采集
             {
@@ -1380,16 +1387,16 @@ namespace Matory
         private void BeginGather(string fileName)
         {
             ProfilerBeginFrame = Time.frameCount;
-            BeginProfilerModules(m_profilerSampleModules);
+            BeginProfilerModules(_mProfilerSampleModules);
             //标记data文件最大使用1GB储存空间,在磁盘存储空间比较紧张的情况下用
             Profiler.maxUsedMemory = 1024 * 1024 *1024;
 
-            Profiler.logFile = Profiler_path + "/" + fileName;
+            Profiler.logFile = _profilerPath + "/" + fileName;
             Profiler.enableBinaryLog = true;
             Profiler.enabled = true;
 
-            profilerDataPath = Profiler_path;
-            profilerDataName = fileName;
+            _profilerDataPath = _profilerPath;
+            _profilerDataName = fileName;
         }
 
         private void EndGather()
@@ -1398,24 +1405,24 @@ namespace Matory
             Profiler.logFile = "";
             Profiler.enableBinaryLog = false;
 
-            profilerDataNames.Add(profilerDataName);
-            profilerDataPaths.Add(profilerDataPath);
+            _profilerDataNames.Add(_profilerDataName);
+            _profilerDataPaths.Add(_profilerDataPath);
         }
         #endregion
 
         #region 获取UI逻辑
 
         /// <summary>
-        /// 获取当前界面所有UI按钮，返回路径以及Obj的Instacneid
+        /// 获取当前界面所有UI按钮，返回路径以及Obj的instanceId
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
         private object FindAllButton(string ip, string[] args)
         {
-            JsonWriter jw = new JsonWriter();
+            var jw = new JsonWriter();
             jw.WriteArrayStart();
-            Canvas[] allcanvas = FindObjectsOfType<Canvas>();
-            foreach(var can in allcanvas)
+            var allCanvas = GetCanvasCache();
+            foreach(var can in allCanvas)
             {
                 var allBtnInCanva = can.GetComponentsInChildren<Button>();
                 foreach (var button in allBtnInCanva)
@@ -1424,23 +1431,23 @@ namespace Matory
                     jw.WritePropertyName("InstanceId");
                     jw.Write(button.gameObject.GetInstanceID());
                     jw.WritePropertyName("ButtonName");
-                    var textobj = button.gameObject.GetComponentInChildren<Text>();
-                    if (textobj == null)
+                    var textObj = button.gameObject.GetComponentInChildren<Text>();
+                    if (textObj == null)
                     {
-                        var textmeshInput = button.gameObject.GetComponentInChildren<InputField>(); //寻找是否有InputField组件
-                        if (textmeshInput != null)
-                            jw.Write(textmeshInput.text);
+                        var textMeshInput = button.gameObject.GetComponentInChildren<InputField>(); //寻找是否有InputField组件
+                        if (textMeshInput != null)
+                            jw.Write(textMeshInput.text);
                         else
                             jw.Write("");
                     }
                     else
-                        jw.Write(textobj.text);
+                        jw.Write(textObj.text);
                     jw.WritePropertyName("BtnPath");
                     string btnPath = GetHierarchyPath(button.transform);
                     jw.Write(btnPath);
                     jw.WriteObjectEnd();
                 }
-             }
+            }
             jw.WriteArrayEnd();
             return jw.ToString();
         }
@@ -1448,10 +1455,10 @@ namespace Matory
         //获取UI上的文本对象
         private object FindText(string ip, string[] args)
         {
-            JsonWriter jw = new JsonWriter();
+            var jw = new JsonWriter();
             jw.WriteArrayStart();
-            Canvas[] allcanva = FindObjectsOfType<Canvas>();
-            foreach (var item in allcanva)
+            var allCanva = GetCanvasCache();
+            foreach (var item in allCanva)
             {
                 if(args.Length!=0 && args[0] != "")
                 {
@@ -1462,7 +1469,7 @@ namespace Matory
                         {
                             jw.WriteObjectStart();
                             jw.WritePropertyName("TextUIPath");
-                            string currentUIPath = GetHierarchyPath(text.transform);
+                            var currentUIPath = GetHierarchyPath(text.transform);
                             jw.Write(currentUIPath);
                             jw.WritePropertyName("InstanceId");
                             jw.Write(text.GetInstanceID());
@@ -1476,7 +1483,7 @@ namespace Matory
                         {
                             jw.WriteObjectStart();
                             jw.WritePropertyName("TextInputUIPath");
-                            string currentUIPath = GetHierarchyPath(inputField.transform);
+                            var currentUIPath = GetHierarchyPath(inputField.transform);
                             jw.Write(currentUIPath);
                             jw.WritePropertyName("InstanceId");
                             jw.Write(inputField.GetInstanceID());
@@ -1490,7 +1497,7 @@ namespace Matory
         }
 
         //获取元素的层级路径
-        private string GetHierarchyPath(Transform transform)
+        private static string GetHierarchyPath(Transform transform)
         {
             if (transform.parent == null)
             {
@@ -1516,9 +1523,9 @@ namespace Matory
             {
                 if (args[0].Equals("id"))
                 {
-                    if (int.TryParse(args[1], out int insid))
+                    if (int.TryParse(args[1], out int inSid))
                     {
-                        if (FindObjectFromInstanceID(insid) != null)
+                        if (FindObjectFromInstanceID(inSid) != null)
                         {
                             res = true;
                             resMsg = "This object is exist.";
@@ -1539,8 +1546,8 @@ namespace Matory
                 {
                     if (args[1] != "")
                     {
-                        targetObj = GameObject.Find(args[1]);
-                        if(targetObj != null)
+                        _targetObj = GameObject.Find(args[1]);
+                        if(_targetObj != null)
                         {
                             res = true;
                             resMsg = "This object is exist.";
@@ -1568,48 +1575,25 @@ namespace Matory
                 res = false;
                 resMsg = "Current args is not enough.";
             }
-            JsonWriter jw = new JsonWriter();
+            var jw = new JsonWriter();
             jw.WriteObjectStart();
             jw.WritePropertyName("ObjectExistState");
             jw.Write(res);
-            jw.WritePropertyName("RetrunMsg");
+            jw.WritePropertyName("ReturnMsg");
             jw.Write(resMsg);
             jw.WriteObjectEnd();
             return jw.ToString();
         }
 
-        //private Text GetChildText(Transform parent, string currentText)
-        //{
-        //    foreach (Transform child in parent)
-        //    {
-        //        //寻找是否有Text组件
-        //        Text text = child.GetComponent<Text>();
-        //        if (text != null && text.text == currentText)
-        //            return text;
-        //        else if (text != null && text.text.Contains(currentText))
-        //            return text;
-
-        //        //寻找是否有InputField组件
-        //        InputField inputText = child.GetComponent<InputField>();
-        //        if (inputText != null && inputText.text == currentText)
-        //            return inputText;
-                
-        //        //递归遍历一下子对象
-        //        GetChildText(child, currentText);
-        //    }
-        //    return null;
-        //}
-
         private Button GetChildButton(Transform parent)
         {
             foreach (Transform child in parent)
             {
-                //检查一些是否有Button组件
-                Button button = child.GetComponent<Button>();
+                var button = child.GetComponent<Button>();
                 if (button != null)
                     return button;
-                //递归遍历一下子对象
-                GetChildButton(child);
+                var result = GetChildButton(child);
+                if (result != null) return result;
             }
             return null;
         }
@@ -1618,12 +1602,11 @@ namespace Matory
         {
             foreach (Transform child in parent)
             {
-                //检查一些是否有Button组件
-                Button button = child.GetComponent<Button>();
+                var button = child.GetComponent<Button>();
                 if (button != null && button.name == buttonName)
                     return button;
-                //递归遍历一下子对象
-                GetChildButton(child, buttonName);
+                var result = GetChildButton(child, buttonName);
+                if (result != null) return result;
             }
             return null;
         }
@@ -1634,12 +1617,12 @@ namespace Matory
         {
             try
             {
-                string capturefilePath = string.Empty;
+                string captureFilePath = string.Empty;
                 if (args.Length != 0 && args[0] != "")
-                    capturefilePath = args[0];
+                    captureFilePath = args[0];
                 else
                     throw new Exception("The args is null or not exist.");
-                _ = ScreenShotTask(ip, capturefilePath);
+                _ = ScreenShotTask(ip, captureFilePath);
                 return "ok";
             }
             catch(Exception ex)
@@ -1651,11 +1634,11 @@ namespace Matory
         private async Task ScreenShotTask(string ip,string filepath)
         {
             ScreenCapture.CaptureScreenshot(filepath);
-            MsgForSend sendmsg = new MsgForSend();
-            sendmsg.Ip = ip;
-            sendmsg.Msg = $"{filepath}+截取完成";
-            SendMsgPool.Enqueue(sendmsg);
-            sendCount += 1;
+            var sendMsg = new MsgForSend();
+            sendMsg.Ip = ip;
+            sendMsg.Msg = $"{filepath}+截取完成";
+            _sendMsgPool.Enqueue(sendMsg);
+            _sendCount += 1;
             await Task.CompletedTask;
         }
 
@@ -1667,20 +1650,20 @@ namespace Matory
         /// </summary>
         /// <param name="args">args[1]是Hierarchy相对路径,args[2]是参数如path</param>
         /// <returns></returns>
-        private object ClickOneButton(string ip, string[] args)
+        private object ClickOneButton(string Ip, string[] args)
         {
-            string res;
             try
             {
+                string res;
                 if (args[0] == "click")  //单击
                 {
                     if (args[2] == "path")
                     {
-                        var targetpath = args[1].Replace("//", "/");
-                        targetObj = GameObject.Find(targetpath);
-                        if (targetObj && targetObj.activeInHierarchy)
+                        var targetPath = args[1].Replace("//", "/");
+                        _targetObj = GameObject.Find(targetPath);
+                        if (_targetObj && _targetObj.activeInHierarchy)
                         {
-                            targetObj.GetComponent<Button>().onClick?.Invoke();
+                            _targetObj.GetComponent<Button>().onClick?.Invoke();
                             res = "click it success.";
                         }
                         else
@@ -1689,12 +1672,12 @@ namespace Matory
                     }
                     else if (args[2] == "id")
                     {
-                        if(int.TryParse(args[1], out int targetid))
+                        if(int.TryParse(args[1], out var targetId))
                         {
-                            targetObj = (GameObject)FindObjectFromInstanceID(targetid);
-                            if (targetObj != null && targetObj.activeInHierarchy)
+                            _targetObj = (GameObject)FindObjectFromInstanceID(targetId);
+                            if (_targetObj != null && _targetObj.activeInHierarchy)
                             {
-                                targetObj.GetComponent<Button>().onClick?.Invoke();
+                                _targetObj.GetComponent<Button>().onClick?.Invoke();
                                 res = "click it success.";
                             }
                             else
@@ -1738,12 +1721,12 @@ namespace Matory
             {
                 if (args[0] != "")
                 {
-                    if (int.TryParse(args[1], out int targetid))
+                    if (int.TryParse(args[1], out int targetId))
                     {
-                        targetObj = (GameObject)FindObjectFromInstanceID(targetid);
-                        if (targetObj != null && targetObj.activeInHierarchy)
+                        _targetObj = (GameObject)FindObjectFromInstanceID(targetId);
+                        if (_targetObj != null && _targetObj.activeInHierarchy)
                         {
-                            var btnObj = targetObj.GetComponent<Button>();
+                            var btnObj = _targetObj.GetComponent<Button>();
                             if (btnObj != null)
                             {
                                 switch (args[0])
@@ -1798,12 +1781,12 @@ namespace Matory
             {
                 if (args[0] != "")
                 {
-                    if (int.TryParse(args[1], out int targetid))
+                    if (int.TryParse(args[1], out int targetId))
                     {
-                        targetObj = (GameObject)FindObjectFromInstanceID(targetid);
-                        if (targetObj != null && targetObj.activeInHierarchy)
+                        _targetObj = (GameObject)FindObjectFromInstanceID(targetId);
+                        if (_targetObj != null && _targetObj.activeInHierarchy)
                         {
-                            var btnObj = targetObj.GetComponent<Button>();
+                            var btnObj = _targetObj.GetComponent<Button>();
                             if (btnObj != null)
                             {
                                 switch (args[0])
@@ -1857,12 +1840,12 @@ namespace Matory
             {
                 if (args[0] != "")
                 {
-                    if (int.TryParse(args[1], out int targetid))
+                    if (int.TryParse(args[1], out int targetId))
                     {
-                        targetObj = (GameObject)FindObjectFromInstanceID(targetid);
-                        if (targetObj != null && targetObj.activeInHierarchy)
+                        _targetObj = (GameObject)FindObjectFromInstanceID(targetId);
+                        if (_targetObj != null && _targetObj.activeInHierarchy)
                         {
-                            var btnObj = targetObj.GetComponent<Button>();
+                            var btnObj = _targetObj.GetComponent<Button>();
                             if (btnObj != null)
                             {
                                 switch (args[0])
@@ -1907,11 +1890,11 @@ namespace Matory
         /// 模拟鼠标操作按下模块
         /// </summary>
         /// <param name="objBtn">组件对象</param>
-        /// <param name="btntype">左右中鼠标键</param>
-        private void SimulateMousePressModule(GameObject objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btntype)
+        /// <param name="btnType">左右中鼠标键</param>
+        private void SimulateMousePressModule(GameObject objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btnType)
         {
             var pointerEventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
-            pointerEventData.button = btntype;
+            pointerEventData.button = btnType;
             UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerEnterHandler);
             objBtn.SendMessage("OnMouseEnter", UnityEngine.SendMessageOptions.DontRequireReceiver);
             UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler);
@@ -1922,11 +1905,11 @@ namespace Matory
         /// 模拟鼠标操作抬起模块
         /// </summary>
         /// <param name="objBtn"></param>
-        /// <param name="btntype"></param>
-        private void SimulateMouseUpModule(GameObject objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btntype)
+        /// <param name="btnType"></param>
+        private void SimulateMouseUpModule(GameObject objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btnType)
         {
             var pointerEventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
-            pointerEventData.button = btntype;
+            pointerEventData.button = btnType;
             UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.initializePotentialDrag);
             objBtn.SendMessage("OnMouseOver", UnityEngine.SendMessageOptions.DontRequireReceiver);
             UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerUpHandler);
@@ -1949,11 +1932,11 @@ namespace Matory
         /// 模拟鼠标操作单击模块
         /// </summary>
         /// <param name="objBtn"></param>
-        /// <param name="btntype"></param>
-        private void SimulateMouseClickModule(GameObject  objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btntype)
+        /// <param name="btnType"></param>
+        private void SimulateMouseClickModule(GameObject  objBtn, UnityEngine.EventSystems.PointerEventData.InputButton btnType)
         {
             var pointerEventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current);
-            pointerEventData.button = btntype;
+            pointerEventData.button = btnType;
             UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerEnterHandler);
             objBtn.SendMessage("OnMouseEnter",UnityEngine.SendMessageOptions.DontRequireReceiver);
             UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(objBtn, pointerEventData, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler);
@@ -1997,7 +1980,7 @@ namespace Matory
             if (bl)
             {
                 //截图然后发送成功截取快照的消息
-                ScreenCapture.CaptureScreenshot(SnapShotFilePath.Replace("snap","png"));
+                ScreenCapture.CaptureScreenshot(_snapShotFilePath.Replace("snap","png"));
                 SendMsg("截取一次内存快照完成——");
             }
             else
@@ -2033,7 +2016,7 @@ namespace Matory
                 string dir = Path.GetDirectoryName(args[1]);
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                SnapShotFilePath = args[1];
+                _snapShotFilePath = args[1];
                 if (!args[1].Contains(".snap"))
                 {
                     response["The args is not contains snap"] = false;
@@ -2133,7 +2116,7 @@ namespace Matory
                         response["SendMsg"] = true;
                         break;
                     default:
-                        response["The typemark is not supported."] = false;
+                        response["The typeMark is not supported."] = false;
                         break;
 #endif
                 }
@@ -2142,7 +2125,7 @@ namespace Matory
             else
             {
                 response["code"] = false;
-                response["sendmsg"] = false;
+                response["sendMsg"] = false;
                 response["args is empty"] = false;
                 return JsonMapper.ToJson(response);
             }
@@ -2154,112 +2137,44 @@ namespace Matory
     {
         public static void InitDataSet()
         {
-            ms_gameObjectDict.Clear();
-            ms_componentDict.Clear();
+            MSGameObjectDict.Clear();
+            MSComponentDict.Clear();
         }
 
         public static void AddGameObject(GameObject obj)
         {
             int nInstanceID = obj.GetInstanceID();
-            if (!ms_gameObjectDict.ContainsKey(nInstanceID))
+            if (!MSGameObjectDict.ContainsKey(nInstanceID))
             {
-                ms_gameObjectDict.Add(nInstanceID, obj);
+                MSGameObjectDict.Add(nInstanceID, obj);
             }
         }
 
         public static bool TryGetGameObject(int nInstanceID, out GameObject go)
         {
-            return ms_gameObjectDict.TryGetValue(nInstanceID, out go);
+            return MSGameObjectDict.TryGetValue(nInstanceID, out go);
         }
 
         public static void AddComponent(Component comp)
         {
             int nInstanceID = comp.GetInstanceID();
-            if (!ms_componentDict.ContainsKey(nInstanceID))
+            if (!MSComponentDict.ContainsKey(nInstanceID))
             {
-                ms_componentDict.Add(nInstanceID, comp);
+                MSComponentDict.Add(nInstanceID, comp);
             }
         }
 
         public static bool TryGetComponent(int nInstanceID, out UnityEngine.Component comp)
         {
-            return ms_componentDict.TryGetValue(nInstanceID, out comp);
+            return MSComponentDict.TryGetValue(nInstanceID, out comp);
         }
 
-        public static Dictionary<int, GameObject> ms_gameObjectDict = new Dictionary<int, GameObject>();
-        public static Dictionary<int, Component> ms_componentDict = new Dictionary<int, Component>();
+        private static readonly Dictionary<int, GameObject> MSGameObjectDict = new Dictionary<int, GameObject>();
+        private static readonly Dictionary<int, Component> MSComponentDict = new Dictionary<int, Component>();
     }
     public class Error
     {
-        public readonly static string NotFoundMessage = "error:notFound";
-        public readonly static string ExceptionMessage = "error:exceptionOccur";
+        public static readonly string NotFoundMessage = "error:notFound";
+        public static readonly string ExceptionMessage = "error:exceptionOccur";
     }
-    //public class ReflectionTool
-    //{
-    //    public static PropertyInfo GetPropertyNest(Type t, String name)
-    //    {
-
-    //        PropertyInfo pi = t.GetProperty(name);
-
-    //        if (pi != null)
-    //        {
-    //            return pi;
-    //        }
-
-    //        if (t.BaseType != null)
-    //        {
-    //            return GetPropertyNest(t.BaseType, name);
-    //        }
-
-    //        return null;
-    //    }
-
-    //    public static object GetComponentAttribute(GameObject target, Type t, String attributeName)
-    //    {
-    //        if (target == null || t == null)
-    //            return null;
-
-    //        Component component = target.GetComponent(t);
-
-    //        if (component == null)
-    //            return null;
-
-    //        PropertyInfo pi = GetPropertyNest(t, attributeName);
-
-    //        if (pi == null || !pi.CanRead)
-    //        {
-    //            return null;
-    //        }
-
-    //        return pi.GetValue(component, null);
-    //    }
-
-    //    public static bool SetComponentAttribute(GameObject obj, Type t, String attributeName, object value)
-    //    {
-
-    //        if (t == null)
-    //        {
-    //            return false;
-    //        }
-
-    //        Component comp = obj.GetComponent(t);
-
-    //        if (comp == null)
-    //        {
-    //            return false;
-    //        }
-
-    //        PropertyInfo pi = GetPropertyNest(t, attributeName);
-
-
-    //        if (pi == null || !pi.CanWrite)
-    //        {
-    //            return false;
-    //        }
-
-    //        pi.SetValue(comp, value, null);
-
-    //        return true;
-    //    }
-    //}
 }

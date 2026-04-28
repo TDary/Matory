@@ -20,7 +20,7 @@ namespace Matory.HotMapSampler
         protected FpsCounter fpsCounter;
         private FrameTiming[] timing;
         List<Sampler> _cacheSamplers;
-        static StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         public float get_CurrentFps
         {
             get { return fpsCounter.CurrentFps; }

@@ -14,6 +14,7 @@ namespace Matory.Net
 		public delegate void MyDelegate(string ip,string msg);
 		public MyDelegate mydelegate;
 		private Socket SockeServer;
+		private static readonly Regex SecWebSocketKeyRegex = new Regex(@"Sec-WebSocket-Key:(.*?)\r\n", RegexOptions.Compiled);
 		#region 启动WebSocket服务
 		/// <summary>
 		/// 启动WebSocket服务
@@ -40,12 +41,7 @@ namespace Matory.Net
 		/// <returns></returns>
 		public bool IsInConnecting(string ip)
 		{
-			foreach(var val in SessionPool.Keys)
-			{
-				if (val.Equals(ip))
-					return true;
-			}
-			return false;
+			return SessionPool.ContainsKey(ip);
 		}
 
 		#region 处理客户端连接请求
@@ -153,11 +149,10 @@ namespace Matory.Net
 		{
 			string handShakeText = Encoding.UTF8.GetString(handShakeBytes, 0, length);
 			string key = string.Empty;
-			Regex reg = new Regex(@"Sec\-WebSocket\-Key:(.*?)\r\n");
-			Match m = reg.Match(handShakeText);
+			Match m = SecWebSocketKeyRegex.Match(handShakeText);
 			if (m.Value != "")
 			{
-				key = Regex.Replace(m.Value, @"Sec\-WebSocket\-Key:(.*?)\r\n", "$1").Trim();
+				key = SecWebSocketKeyRegex.Replace(m.Value, "$1").Trim();
 			}
 			byte[] secKeyBytes = SHA1.Create().ComputeHash(Encoding.ASCII.GetBytes(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"));
 			string secKey = Convert.ToBase64String(secKeyBytes);

@@ -6,12 +6,13 @@ namespace Matory.MatoryServer
 {
     public class MockUpPointerInputModule:StandaloneInputModule
     {
+        private static List<RaycastResult> s_raycastResults = new List<RaycastResult>();
+
         public static PointerEventData GetPointerEventData(Touch touch, PointerEventData previousData = null)
         {
             if (EventSystem.current != null)
             {
                 RaycastResult raycastResult;
-                List<RaycastResult> raycastResults;
                 switch (touch.phase)
                 {
                     case TouchPhase.Began:
@@ -23,9 +24,9 @@ namespace Matory.MatoryServer
                                 button = PointerEventData.InputButton.Left,
                                 pointerId = touch.fingerId
                             };
-                        raycastResults = new List<RaycastResult>();
-                        EventSystem.current.RaycastAll(pointerEventData, raycastResults);
-                        raycastResult = BaseInputModule.FindFirstRaycast(raycastResults);
+                        s_raycastResults.Clear();
+                        EventSystem.current.RaycastAll(pointerEventData, s_raycastResults);
+                        raycastResult = BaseInputModule.FindFirstRaycast(s_raycastResults);
                         pointerEventData.pointerCurrentRaycast = raycastResult;
                         pointerEventData.pointerPressRaycast = pointerEventData.pointerCurrentRaycast;
                         pointerEventData.pointerPress = ExecuteEvents.ExecuteHierarchy(pointerEventData.pointerCurrentRaycast.gameObject, pointerEventData,
@@ -46,16 +47,12 @@ namespace Matory.MatoryServer
                     case TouchPhase.Moved:
                         if (previousData != null)
                         {
-                            raycastResults = new List<RaycastResult>();
-                            EventSystem.current.RaycastAll(previousData, raycastResults);
-                            raycastResult = BaseInputModule.FindFirstRaycast(raycastResults);
+                            s_raycastResults.Clear();
+                            EventSystem.current.RaycastAll(previousData, s_raycastResults);
+                            raycastResult = BaseInputModule.FindFirstRaycast(s_raycastResults);
                             previousData.pointerCurrentRaycast = raycastResult;
                             previousData.delta = touch.deltaPosition;
                             previousData.position = touch.position;
-                            raycastResults = new List<RaycastResult>();
-                            EventSystem.current.RaycastAll(previousData, raycastResults);
-                            raycastResult = BaseInputModule.FindFirstRaycast(raycastResults);
-                            previousData.pointerCurrentRaycast = raycastResult;
                             if (previousData.pointerEnter != previousData.pointerCurrentRaycast.gameObject)
                             {
                                 ExecuteEvents.ExecuteHierarchy(previousData.pointerEnter, previousData,
@@ -78,9 +75,9 @@ namespace Matory.MatoryServer
                     case TouchPhase.Ended:
                         if (previousData != null)
                         {
-                            raycastResults = new List<RaycastResult>();
-                            EventSystem.current.RaycastAll(previousData, raycastResults);
-                            raycastResult = BaseInputModule.FindFirstRaycast(raycastResults);
+                            s_raycastResults.Clear();
+                            EventSystem.current.RaycastAll(previousData, s_raycastResults);
+                            raycastResult = BaseInputModule.FindFirstRaycast(s_raycastResults);
                             previousData.pointerCurrentRaycast = raycastResult;
                             ExecuteEvents.ExecuteHierarchy(previousData.pointerPress, previousData,
                                 ExecuteEvents.pointerUpHandler);

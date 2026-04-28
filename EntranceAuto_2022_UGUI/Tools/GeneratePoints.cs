@@ -106,7 +106,7 @@ namespace Matory.Tools
                 {
                     Ray ray = new Ray(from, dir);
                     RaycastHit[] hitInfos = Physics.CapsuleCastAll(from, from + Vector3.up, rayRadius, pass - from, distance);
-                    if(hitInfos.Length == 0 || hitInfos.All(p=>p.collider.isTrigger == true))
+                    if(hitInfos.Length == 0 || AllCollidersAreTriggers(hitInfos))
                     {
                         if (distanceLimit)
                         {
@@ -170,7 +170,15 @@ namespace Matory.Tools
                 }
                 vecDic[key].Add(vector);
             }
-            List<int> xlists = vecDic.Select(x => int.Parse(x.Key.Split(',')[0])).Distinct().OrderBy(p => p).ToList();
+            List<int> xlists = new List<int>();
+            foreach (var x in vecDic.Keys)
+            {
+                string[] parts = x.Split(',');
+                int xVal = int.Parse(parts[0]);
+                if (!xlists.Contains(xVal))
+                    xlists.Add(xVal);
+            }
+            xlists.Sort();
             Dictionary<int, int> orderRuleDic = new Dictionary<int, int>();
             int orderRule = 1;
             foreach(var x in xlists)
@@ -178,7 +186,15 @@ namespace Matory.Tools
                 orderRuleDic.Add(x, orderRule);
                 orderRule *= -1;
             }
-            vecDic = vecDic.OrderBy(p => int.Parse(p.Key.Split(',')[0])).ThenBy(p => orderRuleDic[int.Parse(p.Key.Split(',')[0])] * int.Parse(p.Key.Split(',')[1])).ToDictionary(key => key.Key, key => key.Value);
+            vecDic = vecDic.OrderBy(p =>
+            {
+                string[] parts = p.Key.Split(',');
+                return int.Parse(parts[0]);
+            }).ThenBy(p =>
+            {
+                string[] parts = p.Key.Split(',');
+                return orderRuleDic[int.Parse(parts[0])] * int.Parse(parts[1]);
+            }).ToDictionary(key => key.Key, key => key.Value);
 
             foreach(var keyv in vecDic)
             {
@@ -237,6 +253,16 @@ namespace Matory.Tools
                 return new Vector3(float.Parse(splitData[0]), float.Parse(splitData[1]), float.Parse(splitData[2]));
             else
                 return Vector3.zero;
+        }
+
+        bool AllCollidersAreTriggers(RaycastHit[] hitInfos)
+        {
+            for (int i = 0; i < hitInfos.Length; i++)
+            {
+                if (!hitInfos[i].collider.isTrigger)
+                    return false;
+            }
+            return true;
         }
     }
 }
