@@ -1,4 +1,5 @@
 ﻿// 将此脚本放到UnityEditor文件夹中
+#if UNITY_EDITOR
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -78,3 +79,4 @@ namespace Matory.Tools
         }
     }
 }
+#endif

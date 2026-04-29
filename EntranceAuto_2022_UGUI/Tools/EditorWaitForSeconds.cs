@@ -1,4 +1,5 @@
-﻿namespace Unity.EditorCoroutines.Editor
+﻿#if UNITY_EDITOR
+namespace Unity.EditorCoroutines.Editor
 {
     /// <summary>
     /// Suspends the <see cref="EditorCoroutine">EditorCoroutine</see> execution for the given amount of seconds, using unscaled time. 
@@ -41,3 +42,4 @@
         }
     }
 }
+#endif

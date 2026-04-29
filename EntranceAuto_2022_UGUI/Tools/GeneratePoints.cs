@@ -1,4 +1,5 @@
-﻿using LitJson;
+﻿#if UNITY_EDITOR
+using LitJson;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -266,3 +267,4 @@ namespace Matory.Tools
         }
     }
 }
+#endif
