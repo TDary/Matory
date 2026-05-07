@@ -1667,8 +1667,10 @@ namespace Matory
                             res = "click it success.";
                         }
                         else
+                        {
                             res = "it is not found.";
-                        throw new Exception(Error.NotFoundMessage);
+                            throw new Exception(Error.NotFoundMessage);
+                        }
                     }
                     else if (args[2] == "id")
                     {
