@@ -621,6 +621,38 @@ namespace Matory
         #endregion
 
         #region 录制客户端UI操作
+
+        private static Vector2 GetInputPos()
+        {
+            if (Input.touchCount > 0)
+                return Input.GetTouch(0).position;
+            return Input.mousePosition;
+        }
+
+        private static bool IsInputHeld()
+        {
+            if (Input.touchCount > 0)
+            {
+                var phase = Input.GetTouch(0).phase;
+                return phase == TouchPhase.Began || phase == TouchPhase.Moved || phase == TouchPhase.Stationary;
+            }
+            return Input.GetMouseButton(0);
+        }
+
+        private static bool IsInputDown()
+        {
+            if (Input.touchCount > 0)
+                return Input.GetTouch(0).phase == TouchPhase.Began;
+            return Input.GetMouseButtonDown(0);
+        }
+
+        private static bool IsInputUp()
+        {
+            if (Input.touchCount > 0)
+                return Input.GetTouch(0).phase == TouchPhase.Ended;
+            return Input.GetMouseButtonUp(0);
+        }
+
         private IEnumerator RecordUIClick(string currentIp)
         {
             float quitTime = 0, maxQuitTime = 7;
@@ -642,7 +674,7 @@ namespace Matory
 
                 if (_isRecording)
                 {
-                    if (Input.GetMouseButton(0))
+                    if (IsInputHeld())
                     {
                         quitTime += Time.unscaledDeltaTime;
                         if (Time.unscaledTime - _mRecordCacheTimestamp > 0.25f)
@@ -655,7 +687,7 @@ namespace Matory
                                 _mRecordPathCache[g.gameObject] = GetGameObjectPath(g.gameObject);
                             }
                         }
-                        var mousePos = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+                        var mousePos = GetInputPos();
                         _dataJson.Clear();
                         _dataJson.Append("[");
                         foreach (var graphic in _mRecordGraphicCache)
@@ -691,19 +723,19 @@ namespace Matory
 
                     try
                     {
-                        if(selectable!=null && selectable is IDragHandler && Input.GetMouseButtonUp(0))
+                        if(selectable!=null && selectable is IDragHandler && IsInputUp())
                         {
                             _data.Add("name", GetGameObjectPath(selectable.gameObject));
                             _data.Add("type", selectable.GetType().ToString());
-                            _data.Add("end position", Input.mousePosition.ToString());
+                            _data.Add("end position", GetInputPos().ToString());
                             _data.Add("time", (nowTime - lastTime).ToString());
                             SendMsg(JsonMapper.ToJson(_data));
                             _data.Clear();
                             selectable = null;
                         }
-                        if (Input.GetMouseButtonDown(0))
+                        if (IsInputDown())
                         {
-                            Vector2 pos = Input.mousePosition;
+                            Vector2 pos = GetInputPos();
                             _data.Add("press position", pos.ToString());
                             var percentX = pos.x / Screen.width;
                             var percentY = pos.y / Screen.height;
@@ -756,9 +788,9 @@ namespace Matory
                                 if (selectable)
                                 {
                                     _data.Add("type", selectable.GetType().ToString());
-                                    if(selectable is IDragHandler && Input.GetMouseButtonDown(0))
+                                    if(selectable is IDragHandler && IsInputDown())
                                     {
-                                        _data.Add("start position", Input.mousePosition.ToString());
+                                        _data.Add("start position", GetInputPos().ToString());
                                     }
                                 }
                                 _data.Add("time", (nowTime - lastTime).ToString());
@@ -1687,7 +1719,7 @@ namespace Matory
                         if (_targetObj && _targetObj.activeInHierarchy)
                         {
                             _targetObj.GetComponent<Button>().onClick?.Invoke();
-                            res = "click it success.";
+                            return "click it success.";
                         }
                         else
                         {
