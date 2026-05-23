@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿#if UNITY_EDITOR
+using System.Collections;
 using UnityEngine;
 
 namespace Unity.EditorCoroutines.Editor
@@ -120,3 +121,4 @@ namespace Unity.EditorCoroutines.Editor
         }
     }
 }
+#endif

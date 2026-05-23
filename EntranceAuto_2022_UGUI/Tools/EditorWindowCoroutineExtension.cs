@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿#if UNITY_EDITOR
+using System.Collections;
 using UnityEditor;
 using UnityEngine;
 
@@ -8,7 +9,7 @@ namespace Unity.EditorCoroutines.Editor
     {
         /// <summary>
         /// Start an <see cref="EditorCoroutine">EditorCoroutine</see>, owned by the calling <see cref="EditorWindow">EditorWindow</see> instance.
-        /// <code> 
+        /// <code>
         /// using System.Collections;
         /// using Unity.EditorCoroutines.Editor;
         /// using UnityEditor;
@@ -101,3 +102,4 @@ namespace Unity.EditorCoroutines.Editor
         }
     }
 }
+#endif

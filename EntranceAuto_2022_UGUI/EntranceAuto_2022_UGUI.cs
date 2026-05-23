@@ -137,7 +137,13 @@ namespace Matory
             }
         }
 
-        void Update()
+        private void OnDestroy()
+        {
+            if (_socketServer != null)
+                _socketServer.stop();
+        }
+
+        private void Update()
         {
             if (_requestCount > 0 || _sendCount > 0)
             {
@@ -230,7 +236,9 @@ namespace Matory
                                     jw.WritePropertyName("Code");
                                     jw.Write(200);
                                     jw.WritePropertyName("Msg");
-                                    jw.Write(data.Msg);
+                                    jw.Write(true);
+                                    jw.WritePropertyName("Data");
+                                    jw.Write(data.Msg ?? "null");
                                     jw.WriteObjectEnd();
                                     var msgBuffer = Encoding.UTF8.GetBytes(jw.ToString());
                                     session.SockeClient.Send(msgBuffer);
@@ -1682,8 +1690,10 @@ namespace Matory
                             res = "click it success.";
                         }
                         else
+                        {
                             res = "it is not found.";
-                        throw new Exception(Error.NotFoundMessage);
+                            throw new Exception(Error.NotFoundMessage);
+                        }
                     }
                     else if (args[2] == "id")
                     {
