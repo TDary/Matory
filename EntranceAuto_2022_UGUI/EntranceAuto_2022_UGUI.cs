@@ -898,12 +898,12 @@ namespace Matory
                     else
                     {
 #if UNITY_2022_3_OR_NEWER
-                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(SnapShotFilePath, MemorySnapShotCallBack, 
+                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(_snapShotFilePath, MemorySnapShotCallBack, 
                             Unity.Profiling.Memory.CaptureFlags.ManagedObjects | Unity.Profiling.Memory.CaptureFlags.NativeObjects | 
                             Unity.Profiling.Memory.CaptureFlags.NativeAllocations | Unity.Profiling.Memory.CaptureFlags.NativeAllocationSites | 
                             Unity.Profiling.Memory.CaptureFlags.NativeStackTraces);
 #elif UNITY_2021_1_OR_NEWER
-                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(SnapShotFilePath, MemorySnapShotCallBack,
+                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(_snapShotFilePath, MemorySnapShotCallBack,
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
                             UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
