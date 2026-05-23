@@ -20,7 +20,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
 using Matory.MatoryServer;
 using System.Globalization;
-using System.Runtime.InteropServices;
+
 
 namespace Matory
 {
@@ -60,18 +60,7 @@ namespace Matory
         private List<Graphic> _mRecordGraphicCache = new List<Graphic>();
         private float _mRecordCacheTimestamp;
         private readonly Dictionary<GameObject, string> _mRecordPathCache = new Dictionary<GameObject, string>();
-        #region DMemTracker
-        [DllImport("MemTrace.dll", EntryPoint = "InitMemTrace")]
-        private static extern bool InitMemTrace();
-        [DllImport("MemTrace.dll", EntryPoint = "UpdateMemory")]
-        private static extern void UpdateMemory();
-        [DllImport("MemTrace.dll", EntryPoint = "GetCurrentProcessMemory")]
-        private static extern ulong GetProcessMemory();
-        [DllImport("MemTrace.dll", EntryPoint = "GetCurrentCPUUsage")]
-        public static extern double GetCurrentCPUUsage();
-        private bool _isInitTrack = false;
-        public double memoryLimitMb = 2048;
-        #endregion
+
         public void Init()
         {
             DontDestroyOnLoad(this);
@@ -100,8 +89,7 @@ namespace Matory
             mPro.funMethods.Add("PerformanceData_GetOne", GetOneFrameData);
             mPro.funMethods.Add("Start_UIRecord", StartRecordUIOperate);
             mPro.funMethods.Add("Stop_UIRecord", StopRecordUIOperate);
-            mPro.funMethods.Add("Start_DTracker", StartTracker);
-            mPro.funMethods.Add("Set_DTrackerLimit", SetSnapAndMemoryLimit);
+
 
             for (int i = 0; i < 5; i++)
             {
@@ -251,7 +239,6 @@ namespace Matory
                 }
             }
             if (_mHotMapController != null) _mHotMapController.OnUpdate();
-            if (_isInitTrack) UpdateMemory();
         }
 
         /// <summary>
@@ -840,34 +827,6 @@ namespace Matory
             }
         }
 
-        private object SetSnapAndMemoryLimit(string ip, string[] args)
-        {
-            if (args.Length > 1)
-            {
-                _snapShotFilePath = args[0];  // snapFilePath
-                memoryLimitMb = double.Parse(args[1]); // memoryLimitMB
-                Debug.Log($"Set snap path {_snapShotFilePath} and memory limit {memoryLimitMb}MB.");
-                return "Set snap and memoryLimit sucessfull.";
-            }
-            return "Set snap and memoryLimit failed.";
-        }
-
-        private object StartTracker(string ip, string[] args)
-        {
-            if (_isInitTrack)
-            {
-                StartCoroutine(MonitorLogic());
-                return "Tracker has been started.";
-            }
-            if (InitMemTrace())
-            {
-                _isInitTrack = true;
-                StartCoroutine(MonitorLogic());
-                return "Start Tracker sucessfull.";
-            }
-            return "Start Tracker failed.";
-        }
-
         private object StopRecordUIOperate(string ip, string[] args)
         {
             _isRecording = false;
@@ -875,50 +834,6 @@ namespace Matory
             return "ok";
         }
 
-        // 转换单位
-        double ToMBMemory(ulong mem)
-        {
-            return Math.Round((double)mem / (1024 * 1024), 2);
-        }
-
-        IEnumerator MonitorLogic()
-        {
-            if (memoryLimitMb == 0)
-                yield return null;
-            var waitSecond = new WaitForSeconds(1f);
-            Debug.Log("开始进行内存监控——");
-            while (true)
-            {
-                if (ToMBMemory(GetProcessMemory()) >= memoryLimitMb)
-                {
-                    if (string.IsNullOrEmpty(_snapShotFilePath))
-                    {
-                        _snapShotFilePath = Path.Combine(Application.persistentDataPath, DateTimeOffset.Now.ToUnixTimeSeconds().ToString(), ".snap");
-                    }
-                    else
-                    {
-#if UNITY_2022_3_OR_NEWER
-                        Unity.Profiling.Memory.MemoryProfiler.TakeSnapshot(_snapShotFilePath, MemorySnapShotCallBack, 
-                            Unity.Profiling.Memory.CaptureFlags.ManagedObjects | Unity.Profiling.Memory.CaptureFlags.NativeObjects | 
-                            Unity.Profiling.Memory.CaptureFlags.NativeAllocations | Unity.Profiling.Memory.CaptureFlags.NativeAllocationSites | 
-                            Unity.Profiling.Memory.CaptureFlags.NativeStackTraces);
-#elif UNITY_2021_1_OR_NEWER
-                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(_snapShotFilePath, MemorySnapShotCallBack,
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
-#else
-                        UnityEngine.Profiling.Memory.Experimental.MemoryProfiler.TakeSnapshot(_snapShotFilePath, MemorySnapShotCallBack,
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.ManagedObjects | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeObjects |
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocations | UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeAllocationSites |
-                            UnityEngine.Profiling.Memory.Experimental.CaptureFlags.NativeStackTraces);
-#endif
-                        break;
-                    }
-                }
-                yield return waitSecond;  // 每秒执行检测一次
-            }
-        }
 
         private class Node
         {
