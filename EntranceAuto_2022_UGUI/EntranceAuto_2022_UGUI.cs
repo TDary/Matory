@@ -105,19 +105,34 @@ namespace Matory
 
             for (int i = 0; i < 5; i++)
             {
-                bool thisPort = IsPortInUse(_port + i);
+                bool thisPort = false;
+                try
+                {
+                    thisPort = IsPortInUse(_port + i);
+                }
+                catch (NotImplementedException)
+                {
+                    // IPGlobalProperties unsupported on this platform (e.g. Android IL2CPP),
+                    // skip the check and try binding directly.
+                }
+
                 if (thisPort)
                 {
                     Debug.Log($"This port {_port + i} is in used");
                     continue;
                 }
-                else
+
+                try
                 {
                     _socketServer = new SocketServer();
                     _socketServer.start(_port + i);    //监听端口号
                     _socketServer.mydelegate = ParseData;
                     Debug.Log($"Matory is Listen success for {_port + i}");
                     break;
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    Debug.Log($"Port {_port + i} bind failed, trying next...");
                 }
             }
         }
