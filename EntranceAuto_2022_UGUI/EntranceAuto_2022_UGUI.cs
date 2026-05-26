@@ -21,7 +21,6 @@ using UnityEngine.EventSystems;
 using Matory.MatoryServer;
 using System.Globalization;
 
-
 namespace Matory
 {
     public class Mato : MonoBehaviour
