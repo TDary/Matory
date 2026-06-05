@@ -56,9 +56,12 @@ namespace Matory
         private float _mCanvasCacheTime;
         private Dictionary<string, GameObject> _mPathCache = new Dictionary<string, GameObject>();
         private float _mPathCacheTime;
+        private readonly HashSet<Graphic> _mRecordGraphicSet = new HashSet<Graphic>();
         private List<Graphic> _mRecordGraphicCache = new List<Graphic>();
         private float _mRecordCacheTimestamp;
         private readonly Dictionary<GameObject, string> _mRecordPathCache = new Dictionary<GameObject, string>();
+        private readonly Dictionary<Graphic, Vector3[]> _mRecordScreenCornersCache = new Dictionary<Graphic, Vector3[]>();
+        private float _mRecordCornersCacheTimestamp;
 
         public void Init()
         {
@@ -395,7 +398,7 @@ namespace Matory
                             continue;
                         }
 
-                        if (pi.GetValue(component) != null)
+                        if (obj != null)
                         {
                             jw.WriteObjectStart();
 
@@ -403,10 +406,10 @@ namespace Matory
                             jw.Write(pi.Name);
 
                             jw.WritePropertyName("type");
-                            jw.Write(pi.GetValue(component).GetType().ToString());
+                            jw.Write(obj.GetType().ToString());
 
                             jw.WritePropertyName("value");
-                            jw.Write(pi.GetValue(component).ToString());
+                            jw.Write(obj.ToString());
 
                             jw.WriteObjectEnd();
                         }
@@ -420,9 +423,8 @@ namespace Matory
                 for (var i = 0; i < fieldInfos.Length; ++i)
                 {
                     var fi = fieldInfos[i];
-                    //Debug.LogError("Field:" + fi.Name);
-
-                    if (fi.GetValue(component) != null)
+                    var fieldValue = fi.GetValue(component);
+                    if (fieldValue != null)
                     {
                         jw.WriteObjectStart();
 
@@ -430,10 +432,10 @@ namespace Matory
                         jw.Write(fi.Name);
 
                         jw.WritePropertyName("type");
-                        jw.Write(fi.GetValue(component).GetType().ToString());
+                        jw.Write(fieldValue.GetType().ToString());
 
                         jw.WritePropertyName("value");
-                        jw.Write(fi.GetValue(component).ToString());
+                        jw.Write(fieldValue.ToString());
 
                         jw.WriteObjectEnd();
                     }
@@ -665,25 +667,59 @@ namespace Matory
                         quitTime += Time.unscaledDeltaTime;
                         if (Time.unscaledTime - _mRecordCacheTimestamp > 0.25f)
                         {
-                            _mRecordGraphicCache = FindAllGameObject<Graphic>();
+                            _mRecordGraphicCache.Clear();
+                            _mRecordGraphicSet.Clear();
+                            var canvases = GetCanvasCache();
+                            for (int ci = 0; ci < canvases.Length; ci++)
+                            {
+                                if (canvases[ci] == null) continue;
+                                var graphics = canvases[ci].GetComponentsInChildren<Graphic>();
+                                for (int gi = 0; gi < graphics.Length; gi++)
+                                {
+                                    if (graphics[gi] != null && _mRecordGraphicSet.Add(graphics[gi]))
+                                        _mRecordGraphicCache.Add(graphics[gi]);
+                                }
+                            }
                             _mRecordCacheTimestamp = Time.unscaledTime;
                             _mRecordPathCache.Clear();
-                            foreach (var g in _mRecordGraphicCache)
+                            for (int i = 0; i < _mRecordGraphicCache.Count; i++)
                             {
-                                _mRecordPathCache[g.gameObject] = GetGameObjectPath(g.gameObject);
+                                var g = _mRecordGraphicCache[i];
+                                if (g != null)
+                                    _mRecordPathCache[g.gameObject] = GetGameObjectPath(g.gameObject);
                             }
+                            _mRecordScreenCornersCache.Clear();
+                            _mRecordCornersCacheTimestamp = _mRecordCacheTimestamp;
+                        }
+                        else if (Time.unscaledTime - _mRecordCornersCacheTimestamp > 0.1f)
+                        {
+                            _mRecordScreenCornersCache.Clear();
+                            _mRecordCornersCacheTimestamp = Time.unscaledTime;
                         }
                         var mousePos = GetInputPos();
                         _dataJson.Clear();
                         _dataJson.Append("[");
-                        foreach (var graphic in _mRecordGraphicCache)
+                        for (int i = 0; i < _mRecordGraphicCache.Count; i++)
                         {
-                            var rect = graphic.gameObject.GetComponent<RectTransform>();
-                            var targetPoint = GetScreenCoordinates(rect);
-                            if (targetPoint[0].x < mousePos.x && targetPoint[2].x > mousePos.x && targetPoint[0].y < mousePos.y && targetPoint[2].y > mousePos.y)
+                            var graphic = _mRecordGraphicCache[i];
+                            if (graphic == null) continue;
+                            Vector3[] corners;
+                            if (!_mRecordScreenCornersCache.TryGetValue(graphic, out corners))
                             {
-                                string path = _mRecordPathCache[graphic.gameObject];
-                                _dataJson.Append("{\"path\":\"" + path + "\",\"id\":\"" + rect.gameObject.GetInstanceID().ToString() + "\"},");
+                                var rect = graphic.gameObject.GetComponent<RectTransform>();
+                                if (rect == null) continue;
+                                corners = GetScreenCoordinates(rect);
+                                _mRecordScreenCornersCache[graphic] = corners;
+                            }
+                            if (corners[0].x < mousePos.x && corners[2].x > mousePos.x && corners[0].y < mousePos.y && corners[2].y > mousePos.y)
+                            {
+                                string path;
+                                if (!_mRecordPathCache.TryGetValue(graphic.gameObject, out path))
+                                {
+                                    path = GetGameObjectPath(graphic.gameObject);
+                                    _mRecordPathCache[graphic.gameObject] = path;
+                                }
+                                _dataJson.Append("{\"path\":\"").Append(path).Append("\",\"id\":\"").Append(graphic.gameObject.GetInstanceID().ToString()).Append("\"},");
                             }
                         }
                         if (_dataJson.Length > 1)
@@ -829,7 +865,11 @@ namespace Matory
         private object StopRecordUIOperate(string ip, string[] args)
         {
             _isRecording = false;
-            StopCoroutine(_recordUIOperateCoroutine);
+            if (_recordUIOperateCoroutine != null)
+            {
+                StopCoroutine(_recordUIOperateCoroutine);
+                _recordUIOperateCoroutine = null;
+            }
             return "ok";
         }
 
@@ -901,17 +941,22 @@ namespace Matory
             }
         }
 
-        private string GetGameObjectPath(GameObject obj)
+        private static readonly StringBuilder _pathBuilder = new StringBuilder(256);
+
+        private static string GetGameObjectPath(GameObject obj)
         {
             if (obj == null) return "null";
-            var path = "/" + obj.name;
+            _pathBuilder.Length = 0;
+            _pathBuilder.Append('/');
+            _pathBuilder.Append(obj.name);
             var parentTransform = obj.transform.parent;
             while (parentTransform != null)
             {
-                path = "/" + parentTransform.name + path;
+                _pathBuilder.Insert(0, parentTransform.name);
+                _pathBuilder.Insert(0, '/');
                 parentTransform = parentTransform.parent;
             }
-            return path;
+            return _pathBuilder.ToString();
         }
 
         /// <summary>
